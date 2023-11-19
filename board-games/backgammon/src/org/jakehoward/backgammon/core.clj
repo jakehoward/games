@@ -52,34 +52,40 @@
   (take-turn [this ctx] (random-take-turn my-man? ctx)))
 
 
-(defn game [p1 p2]
+(defn play [p1 p2]
   (let [max-iterations   5
         initial-roll     (rand-nth legal-first-rolls)
-        [p1-die p2-die]  initial-roll]
+        [p1-die p2-die]  initial-roll
+        ;; needs primitive not Boolean??
+        is-p1-turn       (if (> p1-die p2-die) true false)]
 
-    (loop [n                0
-           die-rolls        initial-roll
-           is-player-1-turn (if (> p1-die p2-die) true false) ;; needs primitive not Boolean??
-           boards           [initial-setup]]
+    (loop [n            0
+           die-rolls    initial-roll
+           is-p1-turn   is-p1-turn
+           board        initial-setup
+           ctxs         []]
 
-      (if (or (> n max-iterations)
-              (finished? (last boards)))
+      (if (or (>= n max-iterations)
+              (finished? board))
 
         {:iterations n
-         :boards boards
-         :finished (finished? (last boards))}
+         :ctxs       ctxs
+         :finished   (finished? board)}
 
-        (let [player      (if is-player-1-turn p1 p2)
-              ctx         {:board (last boards) :die-rolls die-rolls}
+        (let [player      (if is-p1-turn p1 p2)
+              ctx         {:board board :die-rolls die-rolls :p1 is-p1-turn}
               next-board  (take-turn player ctx)]
           (recur (inc n)
                  [(roll-die) (roll-die)]
-                 (not is-player-1-turn)
-                 (conj boards next-board)))))))
+                 (not is-p1-turn)
+                 next-board
+                 (conj ctxs ctx)))))))
 
 
 (comment
   initial-setup
-  (game (->NaivePlayer p1?) (->NaivePlayer p2?))
+  (as-> (play (->NaivePlayer p1?) (->NaivePlayer p2?)) $
+    (:ctxs $)
+    (map :p1 $))
   ;
   )
