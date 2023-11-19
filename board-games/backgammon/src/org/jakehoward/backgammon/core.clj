@@ -39,18 +39,25 @@
      :bar         []
      :borne-off   []}))
 
+(defrecord Move [from-point to-point])
 
-(defn random-take-turn [my-man? {:keys [board die-rolls]}]
-  board)
+(defn get-legal-moves [my-man? {:keys [board die-rolls]}])
 
+(defn random-moves [my-man? ctx]
+  (let [legal-moves (get-legal-moves my-man? ctx)]
+    (rand-nth (into [] legal-moves))))
 
 (defprotocol Player
-  (take-turn [this ctx]))
+  (choose-moves [this ctx]))
 
 (defrecord NaivePlayer [my-man?]
   Player
-  (take-turn [this ctx] (random-take-turn my-man? ctx)))
+  (choose-moves [this ctx] (random-moves my-man? ctx)))
 
+
+(defn apply-move [board move]
+  ;; todo - implement me
+  board)
 
 (defn play [p1 p2]
   (let [max-iterations   5
@@ -63,9 +70,11 @@
            die-rolls    initial-roll
            is-p1-turn   is-p1-turn
            board        initial-setup
-           ctxs         []]
+           ctxs         []
+           legal-move   true]
 
-      (if (or (>= n max-iterations)
+      (if (or (not legal-move)
+              (>= n max-iterations)
               (finished? board))
 
         {:iterations n
@@ -74,12 +83,15 @@
 
         (let [player      (if is-p1-turn p1 p2)
               ctx         {:board board :die-rolls die-rolls :p1 is-p1-turn}
-              next-board  (take-turn player ctx)]
+              moves       (choose-moves player ctx)
+              legal-moves (get-legal-moves (:my-man? player) ctx)
+              next-board  (reduce apply-move board moves)]
           (recur (inc n)
                  [(roll-die) (roll-die)]
                  (not is-p1-turn)
                  next-board
-                 (conj ctxs ctx)))))))
+                 (conj ctxs ctx)
+                 (contains? legal-moves moves)))))))
 
 
 (comment
@@ -87,5 +99,7 @@
   (as-> (play (->NaivePlayer p1?) (->NaivePlayer p2?)) $
     (:ctxs $)
     (map :p1 $))
+
+  (contains? #{[(->Move 1 2) (->Move 3 4)]} [(->Move 1 2) (->Move 3 5)])
   ;
   )
