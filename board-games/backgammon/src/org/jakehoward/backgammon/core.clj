@@ -1,14 +1,26 @@
 (ns org.jakehoward.backgammon.core
   (:require [org.jakehoward.backgammon.utils :refer [roll-die]]))
 
-(def p1? even?)
-(def p2? odd?)
+(defrecord Man [player id])
+
+;; Less messy and space consuming to look at board
+;; if Man prints as a map
+(defmethod print-method Man [^Man inst ^java.io.Writer w]
+  (print-method (into {} inst) w))
+
+(defn make-man [player id-atom]
+  (if (#{:p1 :p2} player)
+    (->Man player (swap! id-atom inc))
+    (throw (Exception. (str "Valid players are :p1 and :p2, not:" player)))))
+
+(defn p1-man? [man] (= :p1 (:player man)))
+(defn p2-man? [man] (= :p2 (:player man)))
 
 (def men-per-player 15)
 
 (defn finished? [board]
   (->> (:borne-off board)
-       (group-by p1?)
+       (group-by p1-man?)
        vals
        (some #(= (count %) men-per-player))
        boolean))
@@ -19,41 +31,42 @@
         :when (not= d1 d2)]
     [d1 d2]))
 
+(def empty-point->men (into {} (map (fn [i] [i []]) (range 1 25))))
+
 ;; assertions
 ;; - men-per-player matches board totals
 (def initial-setup
-  (let [p1-men-id (atom 0)
-        p2-men-id (atom -1)
-        p1 (fn [] (swap! p1-men-id #(+ % 2)))
-        p2 (fn [] (swap! p2-men-id #(+ % 2)))]
-    {:point->men (merge
-                  (into {} (map (fn [i] [i []]) (range 1 25)))
-                  {1  (vec (repeatedly 2 p2))
-                   6  (vec (repeatedly 5 p1))
-                   8  (vec (repeatedly 3 p1))
-                   12 (vec (repeatedly 5 p2))
-                   13 (vec (repeatedly 5 p1))
-                   17 (vec (repeatedly 3 p2))
-                   19 (vec (repeatedly 5 p2))
-                   24 (vec (repeatedly 2 p1))})
+  (let [men-id    (atom 0)
+        p1 (fn [] (make-man :p1 men-id))
+        p2 (fn [] (make-man :p2 men-id))]
+    {:p1-direction :desc
+     :point->men   (merge
+                    empty-point->men
+                    {1  (vec (repeatedly 2 p2))
+                     6  (vec (repeatedly 5 p1))
+                     8  (vec (repeatedly 3 p1))
+                     12 (vec (repeatedly 5 p2))
+                     13 (vec (repeatedly 5 p1))
+                     17 (vec (repeatedly 3 p2))
+                     19 (vec (repeatedly 5 p2))
+                     24 (vec (repeatedly 2 p1))})
      :bar         []
      :borne-off   []}))
 
-(defrecord Move [from-point to-point])
+(defrecord Move [from to])
 
-(defn get-legal-moves [my-man? {:keys [board die-rolls]}])
+(defn get-legal-moves [player-id {:keys [board die-rolls is-p1-turn]}])
 
-(defn random-moves [my-man? ctx]
-  (let [legal-moves (get-legal-moves my-man? ctx)]
+(defn random-moves [player-id ctx]
+  (let [legal-moves (get-legal-moves player-id ctx)]
     (rand-nth (into [] legal-moves))))
 
 (defprotocol Player
   (choose-moves [this ctx]))
 
-(defrecord NaivePlayer [my-man?]
+(defrecord NaivePlayer [player-id]
   Player
-  (choose-moves [this ctx] (random-moves my-man? ctx)))
-
+  (choose-moves [this ctx] (random-moves player-id ctx)))
 
 (defn apply-move [board move]
   ;; todo - implement me
@@ -84,7 +97,7 @@
         (let [player      (if is-p1-turn p1 p2)
               ctx         {:board board :die-rolls die-rolls :p1 is-p1-turn}
               moves       (choose-moves player ctx)
-              legal-moves (get-legal-moves (:my-man? player) ctx)
+              legal-moves (get-legal-moves (:player-id player) ctx)
               next-board  (reduce apply-move board moves)]
           (recur (inc n)
                  [(roll-die) (roll-die)]
@@ -93,10 +106,9 @@
                  (conj ctxs ctx)
                  (contains? legal-moves moves)))))))
 
-
 (comment
   initial-setup
-  (as-> (play (->NaivePlayer p1?) (->NaivePlayer p2?)) $
+  (as-> (play (->NaivePlayer :p1) (->NaivePlayer :p2)) $
     (:ctxs $)
     (map :p1 $))
 
