@@ -9,7 +9,7 @@
 
 (def board-width 700)
 (def middle (half board-width))
-(def board-height 400)
+(def board-height 600)
 (def bar-width 30)
 (def point-width (/ (- middle (half bar-width)) 6))
 (defn dfy [path] (str/join " " path))
@@ -29,7 +29,7 @@
 (def point [:path {:d (dfy
                        ["M" "0" "0"
                         "L" (int point-width) "0"
-                        "L" (int (half point-width)) (- (half board-height) 10)])
+                        "L" (int (half point-width)) (- (half board-height) 20)])
                    :fill "blue"}])
 
 (defn transform [e t]
@@ -59,8 +59,42 @@
    (fill (translate point (int (* 4 point-width)) 0) c1)
    (fill (translate point (int (* 5 point-width)) 0) c1)])
 
+
+(def man-radius 25)
+
+(defn man [player]
+  (let [colour (if (= :p1 player) "#dede9e" "#db93ac")
+        ]
+    [:circle
+     {:cx 0 :cy 0 :r man-radius :fill colour :filter "url(#shadow)"}]))
+
+;; todo: lots of duplicate logic here
+(defn move-man-to-point [man point depth]
+  (translate man
+             (if (>= point 13)
+               (+ (int (+ man-radius (* (- point 13) point-width)))
+                  (if (> point 18) bar-width 0))
+               (+ (int (+ man-radius (* (- 12 point) point-width)))
+                  (if (< point 7) bar-width 0)))
+             (if (>= point 13)
+               (int (+ man-radius (* depth (* 2 man-radius))))
+               (int (- board-height (+ man-radius (* depth (* 2 man-radius))))))))
+(map (fn [idx x] [idx x]) (range 10) [:a :b])
+
+(defn board->men-svg [board]
+  (->> (:point->men board)
+       (mapcat (fn [[point men]]
+                 (->> men
+                      (map (fn [idx m] (-> (man (:player m))
+                                           (move-man-to-point point idx)))
+                           (range 0 (count men))))))
+       (into [:g {}])))
+
 (defn board->svg [board]
   [:svg {:width board-width :height board-height}
+   [:defs
+    [:filter {:id "shadow"}
+     [:feDropShadow {:dx "0.9" :dy "0.9" :stdDeviation "0.2"}]]]
    background
    bar
    point-group
@@ -71,9 +105,9 @@
    (-> point-group
        (translate (int (+ bar-width (* 2 point-group-width))) (int board-height))
        (rotate 180))
-   ;; [:circle {:cx 0 :cy 0 :r 25 :fill "blue"}]
-   ;; [:circle {:cx 100 :cy 75 :r 25 :fill "red"}]
-   ])
+   ;; (-> (man :p1)
+   ;; (move-man-to-point 1 0))
+   (board->men-svg board)])
 
 
 (clerk/html (board->svg bg/initial-setup))
