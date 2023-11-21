@@ -69,24 +69,26 @@
      {:cx 0 :cy 0 :r man-radius :fill colour :filter "url(#shadow)"}]))
 
 ;; todo: lots of duplicate logic here
-(defn move-man-to-point [man point depth]
-  (translate man
-             (if (>= point 13)
-               (+ (int (+ man-radius (* (- point 13) point-width)))
-                  (if (> point 18) bar-width 0))
-               (+ (int (+ man-radius (* (- 12 point) point-width)))
-                  (if (< point 7) bar-width 0)))
-             (if (>= point 13)
-               (int (+ man-radius (* depth (* 2 man-radius))))
-               (int (- board-height (+ man-radius (* depth (* 2 man-radius))))))))
-(map (fn [idx x] [idx x]) (range 10) [:a :b])
+(defn move-man-to-point [man point depth num-men]
+  (let [overlap (if (> num-men 6) (int (- (* 2 man-radius)
+                                          (/ (* 2 man-radius 5) (dec num-men))))
+                    0)]
+    (translate man
+               (if (>= point 13)
+                 (+ (int (+ man-radius (* (- point 13) point-width)))
+                    (if (> point 18) bar-width 0))
+                 (+ (int (+ man-radius (* (- 12 point) point-width)))
+                    (if (< point 7) bar-width 0)))
+               (if (>= point 13)
+                 (int (- (+ man-radius (* depth (* 2 man-radius))) (* depth overlap)))
+                 (int (+ (* depth overlap) (- board-height (+ man-radius (* depth (* 2 man-radius))))))))))
 
 (defn board->men-svg [board]
   (->> (:point->men board)
        (mapcat (fn [[point men]]
                  (->> men
                       (map (fn [idx m] (-> (man (:player m))
-                                           (move-man-to-point point idx)))
+                                           (move-man-to-point point idx (count men))))
                            (range 0 (count men))))))
        (into [:g {}])))
 
@@ -111,6 +113,9 @@
 
 
 (clerk/html (board->svg bg/initial-setup))
+;; (clerk/html (board->svg
+             ;; (assoc bg/initial-setup :point->men
+                    ;; {18 (into [] (repeat 10 {:player :p1 :id :we}))})))
 
 (comment
   )
