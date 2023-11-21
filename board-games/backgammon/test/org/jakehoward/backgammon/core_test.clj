@@ -71,8 +71,8 @@
           next-board (bg/apply-move board move)]
 
       (t/is (= (get-in next-board [:point->men])
-               (merge bg/empty-point->men {24 (pop (get 24 point->men))
-                                           20 [(peek (get 24 point->men))]})))
+               (merge bg/empty-point->men {24 (pop (get point->men 24))
+                                           20 [(peek (get point->men 24))]})))
 
       (t/is (= (get-in next-board [:bar])
                (get-in board [:point->men 20]))))))
