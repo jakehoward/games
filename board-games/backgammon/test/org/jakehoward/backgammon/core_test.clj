@@ -27,8 +27,7 @@
 
           valid-combos         (for [m1 roll-1-moves
                                      m2 roll-2-moves
-                                     :when (not= (:from m1) (:from m2))
-                                     ]
+                                     :when (not= (:from m1) (:from m2))]
                                  #{[m1 m2] [m2 m1]})
 
           same-man-moves      #{[(bg/->Move 24 23) (bg/->Move 23 21)]
@@ -50,11 +49,11 @@
           move       (bg/->Move 24 23)
           next-board (bg/apply-move board move)]
 
-      (t/is (= (get-in next-board [:point->men 24])
-               [(first (get-in board [:point->men 24]))]))
+      (t/is (= [(first (get-in board [:point->men 24]))]
+               (get-in next-board [:point->men 24])))
 
-      (t/is (= (get-in next-board [:point->men 23])
-               [(second (get-in board [:point->men 24]))]))))
+      (t/is (= [(second (get-in board [:point->men 24]))]
+               (get-in next-board [:point->men 23])))))
 
   (t/testing "taking"
     (let [id-atom   (atom 0)
@@ -70,14 +69,45 @@
 
           next-board (bg/apply-move board move)]
 
-      (t/is (= (get-in next-board [:point->men])
-               (merge bg/empty-point->men {24 (pop (get point->men 24))
-                                           20 [(peek (get point->men 24))]})))
+      (t/is (= (merge bg/empty-point->men {24 (pop (get point->men 24))
+                                           20 [(peek (get point->men 24))]})
+               (get-in next-board [:point->men])))
 
-      (t/is (= (get-in next-board [:bar])
-               (get-in board [:point->men 20]))))))
+      (t/is (= (get-in board [:point->men 20])
+               (get-in next-board [:bar])))
+
+      (t/is (= []
+               (get-in next-board [:borne-off])))))
+
+  (t/testing "bearing off"
+    (let [id-atom   (atom 0)
+          p1        (fn [] (bg/make-man :p1 id-atom))
+
+          base-board bg/initial-setup
+          point->men (merge bg/empty-point->men {2 [(p1) (p1)]
+                                                 3 [(p1)]})
+          board      (assoc base-board :point->men point->men)
+
+          move       (bg/->Move 2 :borne-off)
+
+          next-board (bg/apply-move board move)]
+
+      (t/is (= (merge bg/empty-point->men {2 (pop (get point->men 2))
+                                           3 (get point->men 3)})
+               (get-in next-board [:point->men])))
+
+      (t/is (= [(peek (get point->men 2))]
+               (get-in next-board [:borne-off])))
+
+      (t/is (= []
+               (get-in next-board [:bar]))))))
+
 
 (comment
+  (t/deftest grok-order
+    (t/testing "assertion order"
+      (t/is (= :expected :actual))))
+
   (->> (for [m1 [:a1 :b1 :c1]
              m2 [:a2 :b2 :c2]]
          #{[m1 m2] [m2 m1]})

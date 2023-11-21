@@ -69,25 +69,29 @@
   (choose-moves [this ctx] (random-moves player-id ctx)))
 
 (defn apply-move [board {:keys [from to] :as move}]
-  (let [man       (-> board (get-in [:point->men from]) peek)
-        curr-to   (get-in board [:point->men to])
-        is-take   (and (seq curr-to)
-                       (not= (:player man)
-                             (-> curr-to peek :player)))
-        new-from  (-> board (get-in [:point->men from]) pop)
-        new-to    (if is-take
-                    [man]
-                    (conj curr-to man))
-        new-bar    (if is-take
-                     (conj (:bar board) (-> board (get-in [:point->men to]) peek))
-                     (:bar board))
-        new-p->m  (-> (:point->men board)
-                      (assoc from new-from)
-                      (assoc to new-to))
-        ]
+  (let [man         (-> board (get-in [:point->men from]) peek)
+        curr-to     (get-in board [:point->men to])
+        is-bear-off (= to :borne-off)
+        is-take     (and (seq curr-to)
+                         (not= (:player man)
+                               (-> curr-to peek :player)))
+        new-from    (-> board (get-in [:point->men from]) pop)
+        new-to      (if is-take
+                      [man]
+                      (conj curr-to man))
+        new-bar     (if is-take
+                      (conj (:bar board) (-> board (get-in [:point->men to]) peek))
+                      (:bar board))
+        new-p->m    (-> (:point->men board)
+                        (assoc from new-from)
+                        ((fn [p->m] (if is-bear-off p->m (assoc p->m to new-to)))))
+        new-bo      (-> (if is-bear-off
+                          (conj (:borne-off board) man)
+                          (:borne-off board)))]
     (-> board
         (assoc :point->men new-p->m)
-        (assoc :bar new-bar))))
+        (assoc :bar new-bar)
+        (assoc :borne-off new-bo))))
 
 (defn play [p1 p2]
   (let [max-iterations   5
