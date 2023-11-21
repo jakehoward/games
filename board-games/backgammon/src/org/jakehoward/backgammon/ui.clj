@@ -1,69 +1,82 @@
 (ns org.jakehoward.backgammon.ui
-  (:require
-   [io.github.humbleui.canvas :as canvas]
-   [io.github.humbleui.core :as core]
-   [io.github.humbleui.paint :as paint]
-   [io.github.humbleui.ui :as ui]
-   [io.github.humbleui.window :as window])
-  (:import
-   [io.github.humbleui.skija Canvas Color PaintMode Path]))
+  (:require [nextjournal.clerk :as clerk]
+            [org.jakehoward.backgammon.core :as bg]
+            [clojure.string :as str]))
+
+(defonce x (clerk/serve! {:browse true}))
+
+(defn half [x] (/ x 2))
+
+(def board-width 700)
+(def middle (half board-width))
+(def board-height 400)
+(def bar-width 30)
+(def point-width (/ (- middle (half bar-width)) 6))
+(defn dfy [path] (str/join " " path))
+(def c1 "#a39d9d")
+(def c2 "#524545")
 
 
-(defonce *window
-  (atom nil))
+(def background [:rect {:width board-width :height board-height :fill "#2e2b2b"}])
+
+(def bar [:rect
+          {:width bar-width
+           :height board-height
+           :x (- middle (half bar-width))
+           :y 0
+           :fill "#423e3e"}])
+
+(def point [:path {:d (dfy
+                       ["M" "0" "0"
+                        "L" (int point-width) "0"
+                        "L" (int (half point-width)) (- (half board-height) 10)])
+                   :fill "blue"}])
+
+(defn transform [e t]
+  (let [[tag attrs & others] e]
+    (into [tag
+           (update attrs :transform (fn [e] (str/trim (str/join " " [(or e "") t]))))]
+          others)))
+
+(defn translate [e x y]
+  (transform e (format "translate(%s,%s)" (int x) (int y))))
+
+(defn rotate [e angle]
+  (transform e (format "rotate(%s)" angle)))
+
+(defn fill [e c]
+  [(first e) (assoc (second e) :fill c)])
+
+(def point-group-width (* 6 point-width))
+
+(def point-group
+  [:g
+   {}
+   (fill point c1)
+   (fill (translate point (int point-width) 0) c2)
+   (fill (translate point (int (* 2 point-width)) 0) c1)
+   (fill (translate point (int (* 3 point-width)) 0) c2)
+   (fill (translate point (int (* 4 point-width)) 0) c1)
+   (fill (translate point (int (* 5 point-width)) 0) c1)])
+
+(defn board->svg [board]
+  [:svg {:width board-width :height board-height}
+   background
+   bar
+   point-group
+   (translate point-group (int (+ bar-width point-group-width)) 0)
+   (-> point-group
+       (translate (int point-group-width) (int board-height))
+       (rotate 180))
+   (-> point-group
+       (translate (int (+ bar-width (* 2 point-group-width))) (int board-height))
+       (rotate 180))
+   ;; [:circle {:cx 0 :cy 0 :r 25 :fill "blue"}]
+   ;; [:circle {:cx 100 :cy 75 :r 25 :fill "red"}]
+   ])
 
 
-(defn fill-cell [canvas x y paint opacity]
-  (.setAlpha paint opacity)
-  (canvas/draw-rect canvas (core/rect-xywh x y 1 1) paint))
-
-(def paint-knot
-  (paint/stroke 0xFF000000 0.1))
-
-(defn render-sth [canvas x y]
-  (fill-cell canvas x y (paint/fill 0) 255))
-
-
-(defn paint [ctx canvas size]
-  (let [field       (min (:width size) (:height size))
-        dim-x        50
-        dim-y        40
-        ;; translate-x  25
-        ;; translate-y  -20
-        scale-x      (/ field dim-x)
-        scale-y      (/ field dim-y)]
-
-    ;; center canvas
-    (canvas/translate canvas
-                      (-> (:width size) (- field) (/ 2))
-                      (-> (:height size) (- field) (/ 2)))
-
-    ;; scale to fit full width/height but keep square aspect ratio
-    (canvas/scale canvas scale-x scale-y)
-
-    ; erase background
-    (with-open [bg (paint/fill 0xFFFFFFFF)]
-      (canvas/draw-rect canvas (core/rect-xywh 0 0 dim-x dim-y) bg))
-
-    (render-sth canvas 0 0)
-
-    ;; schedule redraw on next vsync
-    (window/request-frame (:window ctx))))
-
-(def app
-  (-> (ui/canvas {:on-paint paint})
-      ui/center
-      ui/default-theme))
-
-(defn start! []
-  (->> (ui/window {:title "Backgammon"} #'app)
-       (reset! *window)
-       (ui/start-app!)))
-
-(defn -main [& args]
-  (start!))
+(clerk/html (board->svg bg/initial-setup))
 
 (comment
-  (start!)
-  ;
   )
