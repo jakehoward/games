@@ -40,6 +40,27 @@
 
           expected           (reduce set/union #{} (conj valid-combos same-man-moves))]
 
+      (t/is (= expected legal-moves))))
+
+  (t/testing "player on the bar"
+    (let [id-atom             (atom 0)
+          board               (-> bg/initial-setup
+                                  (assoc :point->men {1 [(bg/make-man :p1 id-atom)]})
+                                  (assoc :bar [(bg/make-man :p2 id-atom)]))
+
+          legal-moves         (bg/get-legal-moves :p2 {:board board :die-rolls [1 2]})
+          expected            [(bg/->Move :bar 2)]]
+
+      (t/is (= expected legal-moves))))
+
+  (t/testing "bearing off"
+    (let [id-atom             (atom 0)
+          board               (-> bg/initial-setup
+                                  (assoc :point->men {1 [(bg/make-man :p1 id-atom)]}))
+
+          legal-moves         (bg/get-legal-moves :p1 {:board board :die-rolls [3 2]})
+          expected            [(bg/->Move 1 :borne-off)]]
+
       (t/is (= expected legal-moves)))))
 
 ;; todo: need a much more expressive language to describe cases and expectations
@@ -100,6 +121,28 @@
                (get-in next-board [:borne-off])))
 
       (t/is (= []
+               (get-in next-board [:bar])))))
+
+  (t/testing "re-enter from bar"
+    (let [id-atom   (atom 0)
+          p1        (fn [] (bg/make-man :p1 id-atom))
+          p2        (fn [] (bg/make-man :p2 id-atom))
+          p1-bar    (p1)
+          p2-bar    (p2)
+
+          base-board bg/initial-setup
+          point->men (merge bg/empty-point->men {2 [(p1) (p1)]})
+          board      (-> base-board
+                         (assoc :point->men point->men)
+                         (assoc :bar [p2-bar p1-bar]))
+
+          move       (bg/->Move :p2-bar 3) ;; hmm - nasty
+
+          next-board (bg/apply-move board move)]
+
+      (t/is (= (merge point->men {3 [p2-bar]})
+               (get-in next-board [:point->men])))
+      (t/is (= [p1-bar]
                (get-in next-board [:bar]))))))
 
 

@@ -1,5 +1,5 @@
 (ns org.jakehoward.backgammon.core
-  (:require [org.jakehoward.backgammon.utils :refer [roll-die]]))
+  (:require [org.jakehoward.backgammon.utils :refer [roll-die remove-one]]))
 
 (defrecord Man [player id])
 
@@ -69,7 +69,13 @@
   (choose-moves [this ctx] (random-moves player-id ctx)))
 
 (defn apply-move [board {:keys [from to] :as move}]
-  (let [man         (-> board (get-in [:point->men from]) peek)
+  (let [is-re-entry     (#{:p1-bar :p2-bar} from)
+        re-entry-player ({:p1-bar :p1, :p2-bar :p2} from)
+        man             (if is-re-entry
+                          (->> (:bar board)
+                               (drop-while #(not= re-entry-player (:player %)))
+                               first)
+                          (-> board (get-in [:point->men from]) peek))
         curr-to     (get-in board [:point->men to])
         is-bear-off (= to :borne-off)
         is-take     (and (seq curr-to)
@@ -82,8 +88,11 @@
         new-bar     (if is-take
                       (conj (:bar board) (-> board (get-in [:point->men to]) peek))
                       (:bar board))
+        new-bar     (if is-re-entry
+                      (remove-one #(= man %) new-bar)
+                      new-bar)
         new-p->m    (-> (:point->men board)
-                        (assoc from new-from)
+                        ((fn [b] (if is-re-entry b (assoc b from new-from))))
                         ((fn [p->m] (if is-bear-off p->m (assoc p->m to new-to)))))
         new-bo      (-> (if is-bear-off
                           (conj (:borne-off board) man)
