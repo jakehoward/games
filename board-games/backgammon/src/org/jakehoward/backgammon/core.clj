@@ -141,7 +141,7 @@
 (defrecord NaivePlayer [player-id]
   Player
   (choose-moves [this ctx]
-    (let [legal-moves (get-legal-moves player-id ctx)]
+    (let [legal-moves (get-legal-moves (assoc ctx :player player-id))]
       (rand-nth (into [] legal-moves)))))
 
 (defn apply-move [board {:keys [from to] :as move}]
@@ -171,43 +171,51 @@
   (let [max-iterations   5
         initial-roll     (rand-nth legal-first-rolls)
         [p1-die p2-die]  initial-roll
-        ;; needs primitive not Boolean??
         players          (if (> p1-die p2-die) [p1 p2] [p2 p1])]
 
     (loop [n            0
            die-rolls    initial-roll
            players      players
            board        initial-setup
-           ctxs         []
+           history      []
            legal-move   true]
 
       (if (or (not legal-move)
               (>= n max-iterations)
               (finished? board))
 
-        {:iterations n
-         :ctxs       ctxs
-         :finished   (finished? board)}
+        {:iterations   n
+         :history      (conj history {:board board :die-rolls die-rolls})
+         :illegal-move (not legal-move)
+         :finished     (finished? board)}
 
-        (let [player      (first players)
-              ctx         {:board board :die-rolls die-rolls :player (:id player)}
-              moves       (choose-moves player ctx)
-              legal-moves (get-legal-moves ctx)
-              next-board  (reduce apply-move board moves)]
+        (let [player         (first players)
+              ctx            {:board board :die-rolls die-rolls :player (:id player)}
+              moves          (choose-moves player ctx)
+              history-item   (assoc ctx :moves moves)
+              legal-moves    (get-legal-moves ctx)
+              next-board     (reduce apply-move board moves)]
           (recur (inc n)
                  [(roll-die) (roll-die)]
                  (reverse players)
                  next-board
-                 (conj ctxs ctx)
+                 (conj history history-item)
                  (contains? legal-moves moves)))))))
 
 (comment
+
+  (defrecord NoOpPlayer [id]
+    Player
+    (choose-moves [this ctx] []))
+
+  (play (->NoOpPlayer :p1) (->NoOpPlayer :p2))
+
   (reverse (reverse [:a :b]))
   initial-setup
   (as-> (play (->NaivePlayer :p1) (->NaivePlayer :p2)) $
     (:ctxs $)
     (map :p1 $))
 
-  (contains? #{[(->Move 1 2) (->Move 3 4)]} [(->Move 1 2) (->Move 3 5)])
+  (contains? #{[(->Move 1 2) (->Move 3 4)]} [(->Move 1 2) (->Move 3 4)])
   ;
   )
