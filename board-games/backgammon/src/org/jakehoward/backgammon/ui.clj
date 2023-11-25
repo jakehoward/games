@@ -129,16 +129,39 @@
    (board->bar-men-svg board)])
 
 (defn board->header [board]
-  (let [borne-off (get-in board [:point->men :borne-off])
-        grouped   (group-by :player borne-off)
-        p1-count  (-> grouped :p1 count)
-        p2-count  (-> grouped :p2 count)]
+  (let [borne-off   (get-in board [:point->men :borne-off])
+        grouped     (group-by :player borne-off)
+        p1-count    (-> grouped :p1 count)
+        p2-count    (-> grouped :p2 count)
+        idx->colour (fn [idx player] (if (> (if (= :p1 player) p1-count p2-count) idx)
+                                       (if (= :p1 player) p1-colour p2-colour) "dark-gray"))]
     [:div {:style {:display :flex :flex-direction :row :justify-content :space-between}}
-     [:div
+
+     [:div {:style {:display :flex :flex-direction :column :gap 10}}
       "Borne off"
-      [:ul
-       [:li [:span (str "P1 -> " p1-count " of " bg/men-per-player)]]
-       [:li [:span (str "P2 -> " p2-count " of " bg/men-per-player)]]]]
+      (into [:div {:style {:display :flex :flex-direction :row :gap 3}}
+             [:div {:style {:margin-right 10}} "Player 1"]]
+
+            (map (fn [idx] [:div {:style {:width 10
+                                          :height 20
+                                          :border-color "lightgray"
+                                          :border-width 1
+                                          :background-color (idx->colour idx :p1)
+                                          :color            (idx->colour idx :p1)}}
+                            " "])
+                 (range bg/men-per-player) ))
+      (into [:div {:style {:display :flex :flex-direction :row :gap 3}}
+             [:div {:style {:margin-right 10}} "Player 2"]]
+
+            (map (fn [idx] [:div {:style {:width 10
+                                          :height 20
+                                          :border-color "lightgray"
+                                          :border-width 1
+                                          :background-color (idx->colour idx :p2)
+                                          :color            (idx->colour idx :p2)}}
+                            " "])
+                 (range bg/men-per-player) ))]
+
      [:div {:style {:display :flex :flex-direction :column :gap 10 :align-self :center}}
       [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
        [:div "Player 1"]
@@ -148,7 +171,7 @@
        [:div {:style {:background-color p2-colour :color p2-colour :height 20 :width 20}} "a"]]]]))
 
 (defn board->html [board]
-  [:div {}
+  [:div {:style {:display :flex :flex-direction :column :gap 20}}
    (board->header board)
    (board->svg board)])
 
