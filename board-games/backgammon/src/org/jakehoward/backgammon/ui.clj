@@ -10,12 +10,17 @@
 
 (def board-width 700)
 (def middle (half board-width))
-(def board-height 600)
+(def board-height 550)
 (def bar-width 30)
+
 (def point-width (/ (- middle (half bar-width)) 6))
 (defn dfy [path] (str/join " " path))
 (def c1 "#a39d9d")
 (def c2 "#524545")
+
+(def man-radius 25)
+(def p1-colour "#dede9e")
+(def p2-colour "#db93ac")
 
 (def background [:rect {:width board-width :height board-height :fill "#2e2b2b"}])
 
@@ -58,10 +63,6 @@
    (fill (translate point (int (* 3 point-width)) 0) c2)
    (fill (translate point (int (* 4 point-width)) 0) c1)
    (fill (translate point (int (* 5 point-width)) 0) c1)])
-
-(def man-radius 25)
-(def p1-colour "#dede9e")
-(def p2-colour "#db93ac")
 
 (defn man [player]
   (let [colour (if (= :p1 player) p1-colour p2-colour)]
