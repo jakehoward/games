@@ -62,7 +62,12 @@
    [:set
     [:vector {:min 0 :max 4} Move]]))
 
+(def DieRolls
+  (m/schema
+   [:vector {:min 2 :max 2} [:int {:min 1 :max 6}]]))
+
 (comment
+  (m/validate DieRolls [0 6])
   (m/validate LegalMoves #{[(bg/->Move 1 6) (bg/->Move 1 6) (bg/->Move 1 6) (bg/->Move 1 6)]})
   (m/validate LegalMoves #{[]})
   (m/validate LegalMoves #{[(bg/->Move 0 -1)]}) ;; => false (move is invalid)

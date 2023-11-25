@@ -2,6 +2,7 @@
   (:require [org.jakehoward.backgammon.core :as bg]
             [clojure.set :as set]
             [malli.core :as m]
+            [malli.error :as me]
             [org.jakehoward.backgammon.schema :as s]
             [clojure.test :as t]))
 
@@ -16,7 +17,7 @@
   (t/testing "initial board"
     (let [board               bg/initial-setup
 
-          legal-moves         (bg/get-legal-moves :p1 {:board board :die-rolls [1 2]})
+          legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p1})
 
           roll-1-moves        [(bg/->Move 24 23)
                                (bg/->Move 8 7)
@@ -42,6 +43,10 @@
 
           expected           (reduce set/union #{} (conj valid-combos same-man-moves))]
 
+      (t/is (m/validate s/Board board))
+      (t/is (m/validate s/LegalMoves expected))
+      (t/is (m/validate s/LegalMoves legal-moves))
+
       (t/is (= expected legal-moves))))
 
   (t/testing "player on the bar"
@@ -50,11 +55,19 @@
           p2                  (fn [] (bg/make-man :p2 id-atom))
           board               (-> bg/initial-setup
                                   (assoc :point->men {1    [(p1)]
+                                                      :borne-off []
                                                       :bar {:p2 [(p2)] :p1 []}}))
-
-          legal-moves         (bg/get-legal-moves :p2 {:board board :die-rolls [1 2]})
+          legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
           expected            #{[(bg/->Move [:bar :p2] 2)]
                                 [(bg/->Move [:bar :p2] 1)]}]
+
+      ;; (println (-> s/Board
+      ;;              (m/explain board)
+      ;;              (me/humanize)))
+
+      (t/is (m/validate s/Board board))
+      (t/is (m/validate s/LegalMoves expected))
+      (t/is (m/validate s/LegalMoves legal-moves))
 
       (t/is (= expected legal-moves))))
 
@@ -63,21 +76,33 @@
           p1                  (fn [] (bg/make-man :p1 id-atom))
           p2                  (fn [] (bg/make-man :p2 id-atom))
           board               (-> bg/initial-setup
-                                  (assoc :point->men {2 [(p1)]
+                                  (assoc :point->men {:borne-off []
+                                                      :bar {:p1 [] :p2 []}
+                                                      2 [(p1)]
                                                       1 [(p2)]}))
 
-          legal-moves         (bg/get-legal-moves :p2 {:board board :die-rolls [1 2]})
+          legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
           expected           #{[(bg/->Move 1 2)] [(bg/->Move 1 3)]}]
+
+      (t/is (m/validate s/Board board))
+      (t/is (m/validate s/LegalMoves expected))
+      (t/is (m/validate s/LegalMoves legal-moves))
 
       (t/is (= expected legal-moves))))
 
   (t/testing "bearing off"
     (let [id-atom             (atom 0)
           board               (-> bg/initial-setup
-                                  (assoc :point->men {1 [(bg/make-man :p1 id-atom)]}))
+                                  (assoc :point->men {:borne-off []
+                                                      :bar {:p1 [] :p2 []}
+                                                      1 [(bg/make-man :p1 id-atom)]}))
 
-          legal-moves         (bg/get-legal-moves :p1 {:board board :die-rolls [3 2]})
+          legal-moves         (bg/get-legal-moves {:board board :die-rolls [3 2] :player :p1})
           expected            #{[(bg/->Move 1 :borne-off)]}]
+
+      (t/is (m/validate s/Board board))
+      (t/is (m/validate s/LegalMoves expected))
+      (t/is (m/validate s/LegalMoves legal-moves))
 
       (t/is (= expected legal-moves)))))
 

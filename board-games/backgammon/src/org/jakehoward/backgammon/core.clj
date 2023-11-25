@@ -74,15 +74,20 @@
            poss-set-of-moves)))
 
 (defn get-legal-moves
-  [player-id {:keys [board die-rolls is-p1-turn]}]
-  {:pre  [(#{:p1 :p2} player-id) (m/validate s/Board board)]
+  [{:keys [board die-rolls player]}]
+  {:pre  [(m/validate s/Player player)
+          (m/validate s/Board board)
+          (m/validate s/DieRolls die-rolls)]
    :post [(m/validate s/LegalMoves %)]}
+
+  ;; ...
+
   #{})
 
 (comment
   (valid-move? (->Move [:bar :p1] 19))
-  (get-legal-moves :p3 {}) ;; => no!
-  (get-legal-moves :p1 {}))
+  (get-legal-moves {}) ;; => no!
+  (get-legal-moves {}))
 
 ;; ========
 ;; gameplay
@@ -124,11 +129,11 @@
         initial-roll     (rand-nth legal-first-rolls)
         [p1-die p2-die]  initial-roll
         ;; needs primitive not Boolean??
-        is-p1-turn       (if (> p1-die p2-die) true false)]
+        players          (if (> p1-die p2-die) [p1 p2] [p2 p1])]
 
     (loop [n            0
            die-rolls    initial-roll
-           is-p1-turn   is-p1-turn
+           players      players
            board        initial-setup
            ctxs         []
            legal-move   true]
@@ -141,19 +146,20 @@
          :ctxs       ctxs
          :finished   (finished? board)}
 
-        (let [player      (if is-p1-turn p1 p2)
-              ctx         {:board board :die-rolls die-rolls :p1 is-p1-turn}
+        (let [player      (first players)
+              ctx         {:board board :die-rolls die-rolls :player (:id player)}
               moves       (choose-moves player ctx)
-              legal-moves (get-legal-moves (:player-id player) ctx)
+              legal-moves (get-legal-moves ctx)
               next-board  (reduce apply-move board moves)]
           (recur (inc n)
                  [(roll-die) (roll-die)]
-                 (not is-p1-turn)
+                 (reverse players)
                  next-board
                  (conj ctxs ctx)
                  (contains? legal-moves moves)))))))
 
 (comment
+  (reverse (reverse [:a :b]))
   initial-setup
   (as-> (play (->NaivePlayer :p1) (->NaivePlayer :p2)) $
     (:ctxs $)
