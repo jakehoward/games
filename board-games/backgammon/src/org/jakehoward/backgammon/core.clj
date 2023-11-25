@@ -31,7 +31,8 @@
         :when (not= d1 d2)]
     [d1 d2]))
 
-(def empty-point->men (into {} (map (fn [i] [i []]) (range 1 25))))
+(def empty-point->men (into {:bar {:p1 [] :p2 []} :borne-off []}
+                            (map (fn [i] [i []]) (range 1 25))))
 
 ;; assertions
 ;; - men-per-player matches board totals
@@ -42,14 +43,14 @@
     {:p1-direction :desc
      :point->men   (merge
                     empty-point->men
-                    {1  (vec (repeatedly 2 p2))
-                     6  (vec (repeatedly 5 p1))
-                     8  (vec (repeatedly 3 p1))
-                     12 (vec (repeatedly 5 p2))
-                     13 (vec (repeatedly 5 p1))
-                     17 (vec (repeatedly 3 p2))
-                     19 (vec (repeatedly 5 p2))
-                     24 (vec (repeatedly 2 p1))})
+                    {1          (vec (repeatedly 2 p2))
+                     6          (vec (repeatedly 5 p1))
+                     8          (vec (repeatedly 3 p1))
+                     12         (vec (repeatedly 5 p2))
+                     13         (vec (repeatedly 5 p1))
+                     17         (vec (repeatedly 3 p2))
+                     19         (vec (repeatedly 5 p2))
+                     24         (vec (repeatedly 2 p1))})
      :bar         []
      :borne-off   []}))
 
@@ -69,38 +70,27 @@
   (choose-moves [this ctx] (random-moves player-id ctx)))
 
 (defn apply-move [board {:keys [from to] :as move}]
-  (let [is-re-entry     (#{:p1-bar :p2-bar} from)
-        re-entry-player ({:p1-bar :p1, :p2-bar :p2} from)
-        man             (if is-re-entry
-                          (->> (:bar board)
-                               (drop-while #(not= re-entry-player (:player %)))
-                               first)
-                          (-> board (get-in [:point->men from]) peek))
-        curr-to     (get-in board [:point->men to])
-        is-bear-off (= to :borne-off)
+  (let [from-path   (flatten (into [:point->men] (vector from)))
+        to-path     (flatten (into [:point->men] (vector to)))
+        man         (-> board (get-in from-path) peek)
+        curr-to     (get-in board to-path)
         is-take     (and (seq curr-to)
                          (not= (:player man)
                                (-> curr-to peek :player)))
-        new-from    (-> board (get-in [:point->men from]) pop)
+        new-from    (-> board (get-in from-path) pop)
         new-to      (if is-take
                       [man]
                       (conj curr-to man))
-        new-bar     (if is-take
-                      (conj (:bar board) (-> board (get-in [:point->men to]) peek))
-                      (:bar board))
-        new-bar     (if is-re-entry
-                      (remove-one #(= man %) new-bar)
-                      new-bar)
-        new-p->m    (-> (:point->men board)
-                        ((fn [b] (if is-re-entry b (assoc b from new-from))))
-                        ((fn [p->m] (if is-bear-off p->m (assoc p->m to new-to)))))
-        new-bo      (-> (if is-bear-off
-                          (conj (:borne-off board) man)
-                          (:borne-off board)))]
-    (-> board
-        (assoc :point->men new-p->m)
-        (assoc :bar new-bar)
-        (assoc :borne-off new-bo))))
+        new-board    (-> board
+                         (assoc-in from-path new-from)
+                         (assoc-in to-path new-to)
+                         ((fn [b] (if-not is-take
+                                    b
+                                    (let [taken-man (peek curr-to)]
+                                      (update-in b
+                                                 [:point->men :bar (:player taken-man)]
+                                                 (fn [c] (conj c taken-man))))))))]
+    new-board))
 
 (defn play [p1 p2]
   (let [max-iterations   5

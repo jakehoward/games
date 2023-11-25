@@ -91,11 +91,9 @@
           next-board (bg/apply-move board move)]
 
       (t/is (= (merge bg/empty-point->men {24 (pop (get point->men 24))
-                                           20 [(peek (get point->men 24))]})
+                                           20 [(peek (get point->men 24))]
+                                           :bar {:p1 [] :p2 [(peek (get point->men 20))]}})
                (get-in next-board [:point->men])))
-
-      (t/is (= (get-in board [:point->men 20])
-               (get-in next-board [:bar])))
 
       (t/is (= []
                (get-in next-board [:borne-off])))))
@@ -114,14 +112,12 @@
           next-board (bg/apply-move board move)]
 
       (t/is (= (merge bg/empty-point->men {2 (pop (get point->men 2))
-                                           3 (get point->men 3)})
+                                           3 (get point->men 3)
+                                           :borne-off [(peek (get point->men 2))]})
                (get-in next-board [:point->men])))
 
-      (t/is (= [(peek (get point->men 2))]
-               (get-in next-board [:borne-off])))
-
-      (t/is (= []
-               (get-in next-board [:bar])))))
+      (t/is (= {:p1 [] :p2 []}
+               (get-in next-board [:point->men :bar])))))
 
   (t/testing "re-enter from bar"
     (let [id-atom   (atom 0)
@@ -131,19 +127,19 @@
           p2-bar    (p2)
 
           base-board bg/initial-setup
-          point->men (merge bg/empty-point->men {2 [(p1) (p1)]})
+          point->men (merge bg/empty-point->men {2 [(p1) (p1)]
+                                                 :bar {:p1 [p1-bar] :p2 [p2-bar]}})
           board      (-> base-board
                          (assoc :point->men point->men)
                          (assoc :bar [p2-bar p1-bar]))
 
-          move       (bg/->Move :p2-bar 3) ;; hmm - nasty
+          move       (bg/->Move [:bar :p2] 3)
 
           next-board (bg/apply-move board move)]
 
-      (t/is (= (merge point->men {3 [p2-bar]})
-               (get-in next-board [:point->men])))
-      (t/is (= [p1-bar]
-               (get-in next-board [:bar]))))))
+      (t/is (= (merge point->men {3 [p2-bar]
+                                  :bar {:p1 [p1-bar] :p2 []}})
+               (get-in next-board [:point->men]))))))
 
 
 (comment
