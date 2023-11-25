@@ -83,7 +83,7 @@
   {:pre  [(m/validate s/Player player)
           (m/validate s/Board board)
           (m/validate s/DieRolls die-rolls)]
-   :post [(m/validate s/LegalMoves %)]}
+   :post [(m/validate s/LegalMoves %) (is-set-of-valid-moves? %)]}
 
   ;; You must maximise the utilisation of the die rolls
   ;; - If you can only move one or the other of the die rolls,
