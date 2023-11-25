@@ -1,6 +1,8 @@
 (ns org.jakehoward.backgammon.core
   (:require [org.jakehoward.backgammon.utils :refer [roll-die num-die-sides remove-one]]
-            [clojure.core :refer [abs]]))
+            [clojure.core :refer [abs]]
+            [malli.core :as m]
+            [org.jakehoward.backgammon.schema :as s]))
 
 (defrecord Man [player id])
 
@@ -41,8 +43,7 @@
   (let [men-id    (atom 0)
         p1 (fn [] (make-man :p1 men-id))
         p2 (fn [] (make-man :p2 men-id))]
-    {:p1-direction :desc
-     :point->men   (merge
+    {:point->men   (merge
                     empty-point->men
                     {1          (vec (repeatedly 2 p2))
                      6          (vec (repeatedly 5 p1))
@@ -51,9 +52,7 @@
                      13         (vec (repeatedly 5 p1))
                      17         (vec (repeatedly 3 p2))
                      19         (vec (repeatedly 5 p2))
-                     24         (vec (repeatedly 2 p1))})
-     :bar         []
-     :borne-off   []}))
+                     24         (vec (repeatedly 2 p1))})}))
 
 ;; =====
 ;; Rules
@@ -62,14 +61,9 @@
 (defn move? [x] (= org.jakehoward.backgammon.core.Move (type x)))
 (defn valid-move? [{:keys [from to] :as move}]
   (and
-   (move? move)
+   (m/validate s/Move move)
    (not= from to)
-   (if (and (int? from) (int? to)) (<= (abs (- from to)) num-die-sides) true)
-   (cond (= [:bar :p1] from) (< (- 24 to) num-die-sides)
-         (= [:bar :p2] from) (<= to num-die-sides)
-         :else               true)
-   (contains? (into #{:borne-off} (range 1 25)) to)
-   (contains? (into #{[:bar :p1] [:bar :p2]} (range 1 25)) from)))
+   (if (and (int? from) (int? to)) (<= (abs (- from to)) num-die-sides) true)))
 
 (defn is-set-of-valid-moves? [poss-set-of-moves]
   (and
@@ -81,15 +75,14 @@
 
 (defn get-legal-moves
   [player-id {:keys [board die-rolls is-p1-turn]}]
-  {:pre  [(#{:p1 :p2} player-id)]
-   :post [(is-set-of-valid-moves? %)]}
+  {:pre  [(#{:p1 :p2} player-id) (m/validate s/Board board)]
+   :post [(m/validate s/LegalMoves %)]}
   #{})
 
 (comment
   (valid-move? (->Move [:bar :p1] 19))
   (get-legal-moves :p3 {}) ;; => no!
-  (get-legal-moves :p1 {})
-  )
+  (get-legal-moves :p1 {}))
 
 ;; ========
 ;; gameplay

@@ -1,6 +1,8 @@
 (ns org.jakehoward.backgammon.core-test
   (:require [org.jakehoward.backgammon.core :as bg]
             [clojure.set :as set]
+            [malli.core :as m]
+            [org.jakehoward.backgammon.schema :as s]
             [clojure.test :as t]))
 
 ;; property based ideas
@@ -86,6 +88,8 @@
           move       (bg/->Move 24 23)
           next-board (bg/apply-move board move)]
 
+      (t/is (m/validate s/Board next-board))
+
       (t/is (= [(first (get-in board [:point->men 24]))]
                (get-in next-board [:point->men 24])))
 
@@ -106,13 +110,12 @@
 
           next-board (bg/apply-move board move)]
 
+      (t/is (m/validate s/Board next-board))
+
       (t/is (= (merge bg/empty-point->men {24 (pop (get point->men 24))
                                            20 [(peek (get point->men 24))]
                                            :bar {:p1 [] :p2 [(peek (get point->men 20))]}})
-               (get-in next-board [:point->men])))
-
-      (t/is (= []
-               (get-in next-board [:borne-off])))))
+               (get-in next-board [:point->men])))))
 
   (t/testing "bearing off"
     (let [id-atom   (atom 0)
@@ -126,6 +129,8 @@
           move       (bg/->Move 2 :borne-off)
 
           next-board (bg/apply-move board move)]
+
+      (t/is (m/validate s/Board next-board))
 
       (t/is (= (merge bg/empty-point->men {2 (pop (get point->men 2))
                                            3 (get point->men 3)
@@ -152,6 +157,8 @@
           move       (bg/->Move [:bar :p2] 3)
 
           next-board (bg/apply-move board move)]
+
+      (t/is (m/validate s/Board next-board))
 
       (t/is (= (merge point->men {3 [p2-bar]
                                   :bar {:p1 [p1-bar] :p2 []}})
