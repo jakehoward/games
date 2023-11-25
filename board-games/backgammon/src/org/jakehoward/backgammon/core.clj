@@ -2,7 +2,8 @@
   (:require [org.jakehoward.backgammon.utils :refer [roll-die num-die-sides remove-one]]
             [clojure.core :refer [abs]]
             [malli.core :as m]
-            [org.jakehoward.backgammon.schema :as s]))
+            [org.jakehoward.backgammon.schema :as s]
+            [clojure.set :as set]))
 
 (defrecord Man [player id])
 
@@ -73,16 +74,58 @@
                                  (every? valid-move? poss-moves)))
            poss-set-of-moves)))
 
+(defn get-legal-moves-1 [{:keys [board die-roll player]}]
+  #{})
+
 (defn get-legal-moves
   [{:keys [board die-rolls player]}]
+
   {:pre  [(m/validate s/Player player)
           (m/validate s/Board board)
           (m/validate s/DieRolls die-rolls)]
    :post [(m/validate s/LegalMoves %)]}
 
-  ;; ...
+  ;; You must maximise the utilisation of the die rolls
+  ;; - If you can only move one or the other of the die rolls,
+  ;;   it MUST be the larger of the two
 
-  #{})
+  ;; If you have men on the bar you MUST move them first
+
+  ;; If die rolls are the same number, you get to move 4 men instead of 2
+  ;; - you can move the same man 4 times (assuming legal moves)
+
+  ;; Move from current position to:
+  ;; - Empty point
+  ;; - Point containing your men
+  ;; - Point with 1 enemy man
+
+  ;; You can bear off if:
+  ;; - you don't have any men on the bar
+  ;; - and all your men are on your home board
+  ;; - man exists on point_num <= die_num (normalised for p2)
+  (let [[d1 d2]      die-rolls
+        total-rolls  (if (= d1 d2)
+                       (-> (repeat 2 die-rolls) flatten)
+                       die-rolls)
+        all-moves    (reduce (fn [acc die-roll])
+                             {:moves [] :board board :short-circuit false}
+                             total-rolls)]
+    (loop [all-moves []
+           die-nums  (sort total-rolls)
+           board     board]
+      (if-let [die-num (first die-nums)]
+        (let [moves (get-legal-moves-1 {:board board :die-roll (first die-nums) :player player})]
+          (if (seq moves)
+            ;; ==========================================================================
+            ;; TODO: get-legal-moves-1 needs to return (move, next-board) and then search
+            ;;       each next-board for the next roll, possibly with some kind of budget
+            ;;       and heuristic for which to search (like sorted-set in A*)
+            ;; ==========================================================================
+            (recur (conj all-moves moves) (rest die-nums) board)
+
+            ;; short-circuit by removing all remaining rolls
+            (recur all-moves [] board)))
+        (reduce set/union #{} all-moves)))))
 
 (comment
   (valid-move? (->Move [:bar :p1] 19))
