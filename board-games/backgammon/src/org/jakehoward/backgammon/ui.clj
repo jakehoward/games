@@ -1,3 +1,4 @@
+{:nextjournal.clerk/visibility {:code :hide :result :hide}}
 (ns org.jakehoward.backgammon.ui
   (:require [nextjournal.clerk :as clerk]
             [org.jakehoward.backgammon.core :as bg]
@@ -68,7 +69,6 @@
     [:circle
      {:cx 0 :cy 0 :r man-radius :fill colour :filter "url(#shadow)"}]))
 
-;; todo: lots of duplicate logic here
 (defn move-man-to-point [man point depth num-men]
   (let [overlap (if (> num-men 6) (int (- (* 2 man-radius)
                                           (/ (* 2 man-radius 5) (dec num-men))))
@@ -83,8 +83,9 @@
                  (int (- (+ man-radius (* depth (* 2 man-radius))) (* depth overlap)))
                  (int (+ (* depth overlap) (- board-height (+ man-radius (* depth (* 2 man-radius))))))))))
 
-(defn board->men-svg [board]
+(defn board->point-men-svg [board]
   (->> (:point->men board)
+       (filter (fn [[point men]] (int? point)))
        (mapcat (fn [[point men]]
                  (->> men
                       (map (fn [idx m] (-> (man (:player m))
@@ -107,15 +108,13 @@
    (-> point-group
        (translate (int (+ bar-width (* 2 point-group-width))) (int board-height))
        (rotate 180))
-   ;; (-> (man :p1)
-   ;; (move-man-to-point 1 0))
-   (board->men-svg board)])
+   (board->point-men-svg board)])
 
-
+{:nextjournal.clerk/visibility {:code :hide :result :show}}
 (clerk/html (board->svg bg/initial-setup))
-;; (clerk/html (board->svg
-             ;; (assoc bg/initial-setup :point->men
-                    ;; {18 (into [] (repeat 10 {:player :p1 :id :we}))})))
 
+{:nextjournal.clerk/visibility {:code :hide :result :hide}}
 (comment
-  )
+  (clerk/html (board->svg
+               (assoc bg/initial-setup :point->men
+                      {18 (into [] (repeat 10 {:player :p1 :id :we}))}))))
