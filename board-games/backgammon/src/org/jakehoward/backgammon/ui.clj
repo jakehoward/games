@@ -17,7 +17,6 @@
 (def c1 "#a39d9d")
 (def c2 "#524545")
 
-
 (def background [:rect {:width board-width :height board-height :fill "#2e2b2b"}])
 
 (def bar [:rect
@@ -60,7 +59,6 @@
    (fill (translate point (int (* 4 point-width)) 0) c1)
    (fill (translate point (int (* 5 point-width)) 0) c1)])
 
-
 (def man-radius 25)
 (def p1-colour "#dede9e")
 (def p2-colour "#db93ac")
@@ -85,7 +83,11 @@
                  (int (+ (* depth overlap) (- board-height (+ man-radius (* depth (* 2 man-radius))))))))))
 
 (defn move-man-to-bar [man depth player num-men-on-bar]
-  (translate man (int middle) (+ man-radius (rand-int (- board-height (* 3 man-radius))))))
+  (translate man
+             (int middle)
+             (if (= :p1 player)
+               (- board-height (* 2 man-radius) (* depth man-radius))
+               (+ (* 2 man-radius) (* depth man-radius)))))
 
 (defn bar-men-svg [men player]
   (->> men
@@ -149,7 +151,7 @@
                                           :background-color (idx->colour idx :p1)
                                           :color            (idx->colour idx :p1)}}
                             " "])
-                 (range bg/men-per-player) ))
+                 (range bg/men-per-player)))
       (into [:div {:style {:display :flex :flex-direction :row :gap 3}}
              [:div {:style {:margin-right 10}} "Player 2"]]
 
@@ -160,15 +162,15 @@
                                           :background-color (idx->colour idx :p2)
                                           :color            (idx->colour idx :p2)}}
                             " "])
-                 (range bg/men-per-player) ))]
+                 (range bg/men-per-player)))]
 
      [:div {:style {:display :flex :flex-direction :column :gap 10 :align-self :center}}
       [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
        [:div "Player 1"]
-       [:div {:style {:background-color p1-colour :color p1-colour :height 20 :width 20}} "a"]]
+       [:div {:style {:background-color p1-colour :color p1-colour :height 20 :width 20}} " "]]
       [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
        [:div "Player 2"]
-       [:div {:style {:background-color p2-colour :color p2-colour :height 20 :width 20}} "a"]]]]))
+       [:div {:style {:background-color p2-colour :color p2-colour :height 20 :width 20}} " "]]]]))
 
 (defn board->html [board]
   [:div {:style {:display :flex :flex-direction :column :gap 20}}
@@ -183,6 +185,8 @@
       p2      (fn [] (bg/make-man :p2 id-atom))
       board   (merge bg/initial-setup {:point->men {:borne-off [(p1) (p2) (p1) (p1)]
                                                     :bar       {:p1 [(p1) (p1)]
+                                                                ;; :p1 (into [] (repeatedly 7 p1))
+                                                                ;; :p2 (into [] (repeatedly 7 p2))
                                                                 :p2 [(p2) (p2) (p2)]}
                                                     1          [(p1)]
                                                     22         [(p2)]}})]
