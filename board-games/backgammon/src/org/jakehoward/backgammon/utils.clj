@@ -1,7 +1,8 @@
 (ns org.jakehoward.backgammon.utils)
 
+(def num-die-sides 6)
 (defn roll-die []
-  (inc (rand-int 6)))
+  (inc (rand-int num-die-sides)))
 
 (defn remove-one [pred coll]
   (let [before (take-while #(not (pred %)) coll)

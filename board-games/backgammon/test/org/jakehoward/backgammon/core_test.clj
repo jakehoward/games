@@ -44,12 +44,28 @@
 
   (t/testing "player on the bar"
     (let [id-atom             (atom 0)
+          p1                  (fn [] (bg/make-man :p1 id-atom))
+          p2                  (fn [] (bg/make-man :p2 id-atom))
           board               (-> bg/initial-setup
-                                  (assoc :point->men {1 [(bg/make-man :p1 id-atom)]})
-                                  (assoc :bar [(bg/make-man :p2 id-atom)]))
+                                  (assoc :point->men {1    [(p1)]
+                                                      :bar {:p2 [(p2)] :p1 []}}))
 
           legal-moves         (bg/get-legal-moves :p2 {:board board :die-rolls [1 2]})
-          expected            [(bg/->Move :bar 2)]]
+          expected            #{[(bg/->Move [:bar :p2] 2)]
+                                [(bg/->Move [:bar :p2] 1)]}]
+
+      (t/is (= expected legal-moves))))
+
+  (t/testing "taking"
+    (let [id-atom             (atom 0)
+          p1                  (fn [] (bg/make-man :p1 id-atom))
+          p2                  (fn [] (bg/make-man :p2 id-atom))
+          board               (-> bg/initial-setup
+                                  (assoc :point->men {2 [(p1)]
+                                                      1 [(p2)]}))
+
+          legal-moves         (bg/get-legal-moves :p2 {:board board :die-rolls [1 2]})
+          expected           #{[(bg/->Move 1 2)] [(bg/->Move 1 3)]}]
 
       (t/is (= expected legal-moves))))
 
@@ -59,7 +75,7 @@
                                   (assoc :point->men {1 [(bg/make-man :p1 id-atom)]}))
 
           legal-moves         (bg/get-legal-moves :p1 {:board board :die-rolls [3 2]})
-          expected            [(bg/->Move 1 :borne-off)]]
+          expected            #{[(bg/->Move 1 :borne-off)]}]
 
       (t/is (= expected legal-moves)))))
 

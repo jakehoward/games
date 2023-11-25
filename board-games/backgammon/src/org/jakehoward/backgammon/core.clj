@@ -1,5 +1,6 @@
 (ns org.jakehoward.backgammon.core
-  (:require [org.jakehoward.backgammon.utils :refer [roll-die remove-one]]))
+  (:require [org.jakehoward.backgammon.utils :refer [roll-die num-die-sides remove-one]]
+            [clojure.core :refer [abs]]))
 
 (defrecord Man [player id])
 
@@ -54,20 +55,53 @@
      :bar         []
      :borne-off   []}))
 
+;; =====
+;; Rules
+;; =====
 (defrecord Move [from to])
+(defn move? [x] (= org.jakehoward.backgammon.core.Move (type x)))
+(defn valid-move? [{:keys [from to] :as move}]
+  (and
+   (move? move)
+   (not= from to)
+   (if (and (int? from) (int? to)) (<= (abs (- from to)) num-die-sides) true)
+   (cond (= [:bar :p1] from) (< (- 24 to) num-die-sides)
+         (= [:bar :p2] from) (<= to num-die-sides)
+         :else               true)
+   (contains? (into #{:borne-off} (range 1 25)) to)
+   (contains? (into #{[:bar :p1] [:bar :p2]} (range 1 25)) from)))
 
-(defn get-legal-moves [player-id {:keys [board die-rolls is-p1-turn]}])
+(defn is-set-of-valid-moves? [poss-set-of-moves]
+  (and
+   (set? poss-set-of-moves)
+   (every? (fn [poss-moves] (and (vector? poss-moves)
+                                 (every? move? poss-moves)
+                                 (every? valid-move? poss-moves)))
+           poss-set-of-moves)))
 
-(defn random-moves [player-id ctx]
-  (let [legal-moves (get-legal-moves player-id ctx)]
-    (rand-nth (into [] legal-moves))))
+(defn get-legal-moves
+  [player-id {:keys [board die-rolls is-p1-turn]}]
+  {:pre  [(#{:p1 :p2} player-id)]
+   :post [(is-set-of-valid-moves? %)]}
+  #{})
 
+(comment
+  (valid-move? (->Move [:bar :p1] 19))
+  (get-legal-moves :p3 {}) ;; => no!
+  (get-legal-moves :p1 {})
+  )
+
+;; ========
+;; gameplay
+;; ========
 (defprotocol Player
   (choose-moves [this ctx]))
 
 (defrecord NaivePlayer [player-id]
   Player
-  (choose-moves [this ctx] (random-moves player-id ctx)))
+  (choose-moves [this ctx]
+    (let [legal-moves (get-legal-moves player-id ctx)]
+      (rand-nth (into [] legal-moves)))))
 
 (defn apply-move [board {:keys [from to] :as move}]
   (let [from-path   (flatten (into [:point->men] (vector from)))
