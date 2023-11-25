@@ -62,9 +62,11 @@
 
 
 (def man-radius 25)
+(def p1-colour "#dede9e")
+(def p2-colour "#db93ac")
 
 (defn man [player]
-  (let [colour (if (= :p1 player) "#dede9e" "#db93ac")]
+  (let [colour (if (= :p1 player) p1-colour p2-colour)]
     [:circle
      {:cx 0 :cy 0 :r man-radius :fill colour :filter "url(#shadow)"}]))
 
@@ -126,20 +128,28 @@
    (board->point-men-svg board)
    (board->bar-men-svg board)])
 
-(defn board->borne-off [board]
+(defn board->header [board]
   (let [borne-off (get-in board [:point->men :borne-off])
         grouped   (group-by :player borne-off)
         p1-count  (-> grouped :p1 count)
         p2-count  (-> grouped :p2 count)]
-    [:div
-     "Borne off"
-     [:ul
-      [:li [:span (str "P1 -> " p1-count " of " bg/men-per-player)]]
-      [:li [:span (str "P2 -> " p2-count " of " bg/men-per-player)]]]]))
+    [:div {:style {:display :flex :flex-direction :row :justify-content :space-between}}
+     [:div
+      "Borne off"
+      [:ul
+       [:li [:span (str "P1 -> " p1-count " of " bg/men-per-player)]]
+       [:li [:span (str "P2 -> " p2-count " of " bg/men-per-player)]]]]
+     [:div {:style {:display :flex :flex-direction :column :gap 10 :align-self :center}}
+      [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
+       [:div "Player 1"]
+       [:div {:style {:background-color p1-colour :color p1-colour :height 20 :width 20}} "a"]]
+      [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
+       [:div "Player 2"]
+       [:div {:style {:background-color p2-colour :color p2-colour :height 20 :width 20}} "a"]]]]))
 
 (defn board->html [board]
   [:div {}
-   (board->borne-off board)
+   (board->header board)
    (board->svg board)])
 
 {:nextjournal.clerk/visibility {:code :show :result :show}}
