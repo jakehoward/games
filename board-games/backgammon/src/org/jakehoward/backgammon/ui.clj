@@ -64,8 +64,7 @@
 (def man-radius 25)
 
 (defn man [player]
-  (let [colour (if (= :p1 player) "#dede9e" "#db93ac")
-        ]
+  (let [colour (if (= :p1 player) "#dede9e" "#db93ac")]
     [:circle
      {:cx 0 :cy 0 :r man-radius :fill colour :filter "url(#shadow)"}]))
 
@@ -82,6 +81,22 @@
                (if (>= point 13)
                  (int (- (+ man-radius (* depth (* 2 man-radius))) (* depth overlap)))
                  (int (+ (* depth overlap) (- board-height (+ man-radius (* depth (* 2 man-radius))))))))))
+
+(defn move-man-to-bar [man depth player num-men-on-bar]
+  (translate man (int middle) (+ man-radius (rand-int (- board-height (* 3 man-radius))))))
+
+(defn bar-men-svg [men player]
+  (->> men
+       (map (fn [idx m] (-> (man (:player m))
+                            (move-man-to-bar idx player (count m))))
+            (range))))
+
+(defn board->bar-men-svg [board]
+  (let [p1-bar (get-in board [:point->men :bar :p1])
+        p2-bar (get-in board [:point->men :bar :p2])]
+    [:g {}
+     (bar-men-svg p1-bar :p1)
+     (bar-men-svg p2-bar :p2)]))
 
 (defn board->point-men-svg [board]
   (->> (:point->men board)
@@ -108,13 +123,40 @@
    (-> point-group
        (translate (int (+ bar-width (* 2 point-group-width))) (int board-height))
        (rotate 180))
-   (board->point-men-svg board)])
+   (board->point-men-svg board)
+   (board->bar-men-svg board)])
 
-{:nextjournal.clerk/visibility {:code :hide :result :show}}
-(clerk/html (board->svg bg/initial-setup))
+(defn board->borne-off [board]
+  (let [borne-off (get-in board [:point->men :borne-off])
+        grouped   (group-by :player borne-off)
+        p1-count  (-> grouped :p1 count)
+        p2-count  (-> grouped :p2 count)]
+    [:div
+     "Borne off"
+     [:ul
+      [:li [:span (str "P1 -> " p1-count " of " bg/men-per-player)]]
+      [:li [:span (str "P2 -> " p2-count " of " bg/men-per-player)]]]]))
+
+(defn board->html [board]
+  [:div {}
+   (board->borne-off board)
+   (board->svg board)])
+
+{:nextjournal.clerk/visibility {:code :show :result :show}}
+(clerk/html (board->html bg/initial-setup))
+
+(let [id-atom (atom 0)
+      p1      (fn [] (bg/make-man :p1 id-atom))
+      p2      (fn [] (bg/make-man :p2 id-atom))
+      board   (merge bg/initial-setup {:point->men {:borne-off [(p1) (p2) (p1) (p1)]
+                                                    :bar       {:p1 [(p1) (p1)]
+                                                                :p2 [(p2) (p2) (p2)]}
+                                                    1          [(p1)]
+                                                    22         [(p2)]}})]
+  (clerk/html (board->html board)))
 
 {:nextjournal.clerk/visibility {:code :hide :result :hide}}
 (comment
-  (clerk/html (board->svg
+  (clerk/html (board->html
                (assoc bg/initial-setup :point->men
                       {18 (into [] (repeat 10 {:player :p1 :id :we}))}))))
