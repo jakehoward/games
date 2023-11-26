@@ -1,5 +1,5 @@
 (ns org.jakehoward.backgammon.core
-  (:require [org.jakehoward.backgammon.utils :refer [roll-die num-die-sides remove-one]]
+  (:require [org.jakehoward.backgammon.utils :refer [roll-die num-die-sides]]
             [clojure.core :refer [abs]]
             [malli.core :as m]
             [org.jakehoward.backgammon.schema :as s]
