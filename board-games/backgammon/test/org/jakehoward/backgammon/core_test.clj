@@ -4,6 +4,7 @@
             [malli.core :as m]
             [malli.error :as me]
             [org.jakehoward.backgammon.schema :as s]
+            [org.jakehoward.backgammon.utils :as u]
             [clojure.test :as t]))
 
 ;; property based ideas
@@ -28,10 +29,10 @@
                                (bg/->Move 8 6)
                                (bg/->Move 6 4)]
 
-          valid-combos         (for [m1 roll-1-moves
-                                     m2 roll-2-moves
-                                     :when (not= (:from m1) (:from m2))]
-                                 #{[m1 m2] [m2 m1]})
+          valid-combos        (for [m1 roll-1-moves
+                                    m2 roll-2-moves
+                                    :when (not= (:from m1) (:from m2))]
+                                #{[m1 m2] [m2 m1]})
 
           same-man-moves      #{[(bg/->Move 24 23) (bg/->Move 23 21)]
                                 [(bg/->Move 24 22) (bg/->Move 22 21)]
@@ -41,7 +42,7 @@
                                 [(bg/->Move 6  5)  (bg/->Move 5  3)]
                                 [(bg/->Move 6  4)  (bg/->Move 4  3)]}
 
-          expected           (reduce set/union #{} (conj valid-combos same-man-moves))]
+          expected            (reduce set/union #{} (conj valid-combos same-man-moves))]
 
       (t/is (m/validate s/Board board))
       (t/is (m/validate s/LegalMoves expected))
@@ -50,13 +51,12 @@
       (t/is (= expected legal-moves))))
 
   (t/testing "player on the bar"
-    (let [id-atom             (atom 0)
-          p1                  (fn [] (bg/make-man :p1 id-atom))
-          p2                  (fn [] (bg/make-man :p2 id-atom))
-          board               (-> bg/initial-setup
-                                  (assoc :point->men {1    [(p1)]
-                                                      :borne-off []
-                                                      :bar {:p2 [(p2)] :p1 []}}))
+    (let [{:keys [p1 p2]}     (bg/player-generator)
+          board               (->
+                               bg/initial-setup
+                               (assoc :point->men (u/deep-merge  bg/empty-point->men
+                                                                 {1    [(p1)]
+                                                                  :bar {:p2 [(p2)]}})))
           legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
           expected            #{[(bg/->Move [:bar :p2] 2)]
                                 [(bg/->Move [:bar :p2] 1)]}]
@@ -72,14 +72,11 @@
       (t/is (= expected legal-moves))))
 
   (t/testing "taking"
-    (let [id-atom             (atom 0)
-          p1                  (fn [] (bg/make-man :p1 id-atom))
-          p2                  (fn [] (bg/make-man :p2 id-atom))
+    (let [{:keys [p1 p2]}     (bg/player-generator)
           board               (-> bg/initial-setup
-                                  (assoc :point->men {:borne-off []
-                                                      :bar {:p1 [] :p2 []}
-                                                      2 [(p1)]
-                                                      1 [(p2)]}))
+                                  (assoc :point->men (u/deep-merge  bg/empty-point->men
+                                                                    {1 [(p2)]
+                                                                     2 [(p1)]})))
 
           legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
           expected           #{[(bg/->Move 1 2)] [(bg/->Move 1 3)]}]
@@ -91,11 +88,10 @@
       (t/is (= expected legal-moves))))
 
   (t/testing "bearing off"
-    (let [id-atom             (atom 0)
+    (let [{:keys [p1 p2]}     (bg/player-generator)
           board               (-> bg/initial-setup
-                                  (assoc :point->men {:borne-off []
-                                                      :bar {:p1 [] :p2 []}
-                                                      1 [(bg/make-man :p1 id-atom)]}))
+                                  (assoc :point->men (u/deep-merge bg/empty-point->men
+                                                                   {1 [(p1)]})))
 
           legal-moves         (bg/get-legal-moves {:board board :die-rolls [3 2] :player :p1})
           expected            #{[(bg/->Move 1 :borne-off)]}]
@@ -137,9 +133,10 @@
 
       (t/is (m/validate s/Board next-board))
 
-      (t/is (= (merge bg/empty-point->men {24 (pop (get point->men 24))
-                                           20 [(peek (get point->men 24))]
-                                           :bar {:p1 [] :p2 [(peek (get point->men 20))]}})
+      (t/is (= (u/deep-merge bg/empty-point->men
+                             {24 (pop (get point->men 24))
+                              20 [(peek (get point->men 24))]
+                              :bar {:p2 [(peek (get point->men 20))]}})
                (get-in next-board [:point->men])))))
 
   (t/testing "bearing off"
@@ -173,8 +170,9 @@
           p2-bar    (p2)
 
           base-board bg/initial-setup
-          point->men (merge bg/empty-point->men {2 [(p1) (p1)]
-                                                 :bar {:p1 [p1-bar] :p2 [p2-bar]}})
+          point->men (u/deep-merge bg/empty-point->men
+                                   {2 [(p1) (p1)]
+                                    :bar {:p1 [p1-bar] :p2 [p2-bar]}})
           board      (-> base-board
                          (assoc :point->men point->men)
                          (assoc :bar [p2-bar p1-bar]))
@@ -185,10 +183,10 @@
 
       (t/is (m/validate s/Board next-board))
 
-      (t/is (= (merge point->men {3 [p2-bar]
-                                  :bar {:p1 [p1-bar] :p2 []}})
+      (t/is (= (u/deep-merge point->men
+                             {3 [p2-bar]
+                              :bar {:p1 [p1-bar] :p2 []}})
                (get-in next-board [:point->men]))))))
-
 
 (comment
   (t/deftest grok-order

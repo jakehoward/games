@@ -38,12 +38,15 @@
 (def empty-point->men (into {:bar {:p1 [] :p2 []} :borne-off []}
                             (map (fn [i] [i []]) (range 1 25))))
 
+(defn player-generator []
+  (let [id-atom (atom 0)]
+    {:p1 (fn [] (make-man :p1 id-atom))
+     :p2 (fn [] (make-man :p1 id-atom))}))
+
 ;; assertions
 ;; - men-per-player matches board totals
 (def initial-setup
-  (let [men-id    (atom 0)
-        p1 (fn [] (make-man :p1 men-id))
-        p2 (fn [] (make-man :p2 men-id))]
+  (let [{:keys [p1 p2]} (player-generator)]
     {:point->men   (merge
                     empty-point->men
                     {1          (vec (repeatedly 2 p2))
@@ -103,6 +106,10 @@
   ;; - you don't have any men on the bar
   ;; - and all your men are on your home board
   ;; - man exists on point_num <= die_num (normalised for p2)
+
+  ;; You can't use all die rolls if you don't have enough men to do so
+  ;; - e.g. last item borne off
+
   (let [[d1 d2]      die-rolls
         total-rolls  (if (= d1 d2)
                        (-> (repeat 2 die-rolls) flatten)
