@@ -1,7 +1,7 @@
 (ns org.jakehoward.backgammon.schema
   (:require [malli.core :as m]
             [malli.util :as mu]
-            [org.jakehoward.backgammon.core :as bg]))
+            [org.jakehoward.backgammon.constants :as c]))
 
 (defn minmax [s min max]
   (-> s
@@ -23,12 +23,12 @@
 (def Point->Men
   (m/schema
    [:map
-    [:borne-off (minmax Men 0 (* 2 bg/men-per-player))]
+    [:borne-off (minmax Men 0 (* 2 c/men-per-player))]
     [:bar [:map
-           [:p1 (minmax Men 0 bg/men-per-player)]
-           [:p2 (minmax Men 0 bg/men-per-player)]]]
+           [:p1 (minmax Men 0 c/men-per-player)]
+           [:p2 (minmax Men 0 c/men-per-player)]]]
     [::m/default [:map-of
-                  [:and :int [:> 0] [:< 25]] (minmax Men 0 bg/men-per-player)]]]))
+                  [:and :int [:> 0] [:< 25]] (minmax Men 0 c/men-per-player)]]]))
 
 (def Board
   (m/schema
@@ -65,23 +65,6 @@
 (def DieRolls
   (m/schema
    [:vector {:min 2 :max 2} [:int {:min 1 :max 6}]]))
-
-(comment
-  (m/validate DieRolls [0 6])
-  (m/validate LegalMoves #{[(bg/->Move 1 6) (bg/->Move 1 6) (bg/->Move 1 6) (bg/->Move 1 6)]})
-  (m/validate LegalMoves #{[]})
-  (m/validate LegalMoves #{[(bg/->Move 0 -1)]}) ;; => false (move is invalid)
-  (m/validate Move (bg/->Move 1 18))
-  (m/validate (m/schema [:or [:= [:a :b]] [:= [:a :c]]]) [:a :c :d])
-  (m/validate Player :p1)
-  (m/validate Man (bg/->Man :p1 1))
-  (m/validate Men [(bg/->Man :p1 1) (bg/->Man :p1 1)]) ;; todo: unique ids
-  (m/validate Point->Men {:borne-off []
-                          :bar {:p1 [] :p2 []}
-                          1 [(bg/->Man :p1 1) (bg/->Man :p1 1)]})
-  
-  (m/validate Board bg/initial-setup)
-  )
 
 (comment
 

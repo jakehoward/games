@@ -1,5 +1,4 @@
-(ns org.jakehoward.backgammon.utils
-  (:require [org.jakehoward.backgammon.core :as bg]))
+(ns org.jakehoward.backgammon.utils)
 
 (def num-die-sides 6)
 (defn roll-die []
@@ -24,8 +23,6 @@
         :else r))
 
 (comment
-
-  (deep-merge bg/initial-setup {:point->men {:bar {:p1 [:yay]}}})
 
   (defrecord MyRec [a])
   (assoc (->MyRec :a) :b :A)

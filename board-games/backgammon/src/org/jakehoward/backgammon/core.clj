@@ -3,7 +3,8 @@
             [clojure.core :refer [abs]]
             [malli.core :as m]
             [org.jakehoward.backgammon.schema :as s]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [org.jakehoward.backgammon.constants :as c]))
 
 (defrecord Man [player id])
 
@@ -19,15 +20,6 @@
 
 (defn p1-man? [man] (= :p1 (:player man)))
 (defn p2-man? [man] (= :p2 (:player man)))
-
-(def men-per-player 15)
-
-(defn finished? [board]
-  (->> (:borne-off board)
-       (group-by p1-man?)
-       vals
-       (some #(= (count %) men-per-player))
-       boolean))
 
 (def legal-first-rolls
   (for [d1 (range 1 7)
@@ -173,6 +165,13 @@
                                                  [:point->men :bar (:player taken-man)]
                                                  (fn [c] (conj c taken-man))))))))]
     new-board))
+
+(defn finished? [board]
+  (->> (get-in board [:point->men :borne-off])
+       (group-by p1-man?)
+       vals
+       (some #(= (count %) c/men-per-player))
+       boolean))
 
 (defn play [p1 p2]
   (let [max-iterations   5

@@ -2,6 +2,7 @@
 (ns org.jakehoward.backgammon.ui
   (:require [nextjournal.clerk :as clerk]
             [org.jakehoward.backgammon.core :as bg]
+            [org.jakehoward.backgammon.constants :as c]
             [clojure.string :as str]))
 
 (defonce x (clerk/serve! {:browse true}))
@@ -152,7 +153,7 @@
                                           :background-color (idx->colour idx :p1)
                                           :color            (idx->colour idx :p1)}}
                             " "])
-                 (range bg/men-per-player)))
+                 (range c/men-per-player)))
       (into [:div {:style {:display :flex :flex-direction :row :gap 3}}
              [:div {:style {:margin-right 10}} "Player 2"]]
 
@@ -163,7 +164,7 @@
                                           :background-color (idx->colour idx :p2)
                                           :color            (idx->colour idx :p2)}}
                             " "])
-                 (range bg/men-per-player)))]
+                 (range c/men-per-player)))]
 
      [:div {:style {:display :flex :flex-direction :column :gap 10 :align-self :center}}
       [:div {:style {:display :flex :flex-direction :row :gap 10 :align-items :center}}
