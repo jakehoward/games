@@ -7,6 +7,10 @@
             [org.jakehoward.backgammon.utils :as u]
             [clojure.test :as t]))
 
+(defn empty-board-with [p->m]
+  (-> bg/initial-setup
+      (assoc :point->men (u/deep-merge bg/empty-point->men p->m))))
+
 ;; property based ideas
 ;; - if not bearning off, number of men on board invariant
 ;; - num men total is invariant
@@ -100,6 +104,104 @@
       (t/is (m/validate s/LegalMoves expected))
       (t/is (m/validate s/LegalMoves legal-moves))
 
+      (t/is (= expected legal-moves))))
+
+  (t/testing "rolling a double"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {12 [(p2)]
+                                               6  [(p1)]})
+          die-rolls         [1 1]
+          legal-moves-p1    (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p1})
+          expected-p1       #{[(bg/->Move 6 5)
+                               (bg/->Move 5 4)
+                               (bg/->Move 4 3)
+                               (bg/->Move 3 2)]}
+
+          legal-moves-p2    (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p2})
+          expected-p2       #{[(bg/->Move 12 13)
+                               (bg/->Move 13 14)
+                               (bg/->Move 14 15)
+                               (bg/->Move 15 16)]}]
+      (t/is (= expected-p1 legal-moves-p1))
+      (t/is (= expected-p2 legal-moves-p2))))
+
+  (t/testing "moving same man multiple times"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {13 [(p2)]
+                                               18 [(p2)]
+                                               6  [(p1)]
+                                               12 [(p1)]})
+          die-rolls         [1 2]
+          legal-moves-p1    (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p1})
+          expected-p1       #{[(bg/->Move 6 5) (bg/->Move 5 3)]
+                              [(bg/->Move 6 4) (bg/->Move 4 3)]
+                              [(bg/->Move 12 11) (bg/->Move 11 9)]
+                              [(bg/->Move 12 10) (bg/->Move 10 9)]
+
+                              [(bg/->Move 12 11) (bg/->Move 6 4)]
+                              [(bg/->Move 6 4)   (bg/->Move 12 11)]
+
+                              [(bg/->Move 12 10) (bg/->Move 6 5)]
+                              [(bg/->Move 6 5)   (bg/->Move 12 10)]}
+
+          legal-moves-p2    (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p2})
+          expected-p2       #{[(bg/->Move 13 14) (bg/->Move 14 16)]
+                              [(bg/->Move 13 15) (bg/->Move 15 16)]
+                              [(bg/->Move 18 19) (bg/->Move 19 21)]
+                              [(bg/->Move 18 20) (bg/->Move 20 21)]
+
+                              [(bg/->Move 13 14) (bg/->Move 18 20)]
+                              [(bg/->Move 18 20) (bg/->Move 13 14)]
+
+                              [(bg/->Move 13 15) (bg/->Move 18 19)]
+                              [(bg/->Move 18 19) (bg/->Move 13 15) ]}]
+      (t/is (= expected-p1 legal-moves-p1))
+      (t/is (= expected-p2 legal-moves-p2))))
+
+  (t/testing "blocked from moving off the bar - p2"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {:bar {:p2 [(p2)]}
+                                               6 [(p1) (p1)]
+                                               5 [(p1) (p1)]})
+          die-rolls         [6 5]
+          legal-moves       (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p2})
+          expected          #{}]
+
+      (t/is (= expected legal-moves))
+      (t/is (= expected legal-moves))))
+
+  (t/testing "blocked from moving off the bar - p1"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {:bar {:p1 [(p1)]}
+                                               19 [(p2) (p2)]
+                                               20 [(p2) (p2)]})
+          die-rolls         [6 5]
+          legal-moves       (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p1})
+          expected          #{}]
+
+      (t/is (= expected legal-moves))
+      (t/is (= expected legal-moves))))
+
+  (t/testing "can play one or other die, but not both - p1"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {3 [(p2) (p2)]
+                                               6 [(p1)]})
+          die-rolls         [1 2]
+          legal-moves       (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p1})
+          expected          #{[(bg/->Move 6 4)]}]
+
+      (t/is (= expected legal-moves))
+      (t/is (= expected legal-moves))))
+
+  (t/testing "can play one or other die, but not both - p2"
+    (let [{:keys [p1 p2]}   (bg/player-generator)
+          board             (empty-board-with {19 [(p2)]
+                                               22 [(p1) (p1)]})
+          die-rolls         [1 2]
+          legal-moves       (bg/get-legal-moves {:board board :die-rolls die-rolls :player :p2})
+          expected          #{[(bg/->Move 19 21)]}]
+
+      (t/is (= expected legal-moves))
       (t/is (= expected legal-moves)))))
 
 ;; todo: need a much more expressive language to describe cases and expectations
