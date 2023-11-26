@@ -4,7 +4,8 @@
             [malli.core :as m]
             [org.jakehoward.backgammon.schema :as s]
             [clojure.set :as set]
-            [org.jakehoward.backgammon.constants :as c]))
+            [org.jakehoward.backgammon.constants :as c]
+            [clojure.math.combinatorics :as combo]))
 
 (defrecord Man [player id])
 
@@ -50,6 +51,30 @@
                      19         (vec (repeatedly 5 p2))
                      24         (vec (repeatedly 2 p1))})}))
 
+;; todo - memoize me, measure perf before/after
+(defn apply-move [board {:keys [from to] :as move}]
+  (let [from-path   (flatten (into [:point->men] (vector from)))
+        to-path     (flatten (into [:point->men] (vector to)))
+        man         (-> board (get-in from-path) peek)
+        curr-to     (get-in board to-path)
+        is-take     (and (seq curr-to)
+                         (not= (:player man)
+                               (-> curr-to peek :player)))
+        new-from    (-> board (get-in from-path) pop)
+        new-to      (if is-take
+                      [man]
+                      (conj curr-to man))
+        new-board    (-> board
+                         (assoc-in from-path new-from)
+                         (assoc-in to-path new-to)
+                         ((fn [b] (if-not is-take
+                                    b
+                                    (let [taken-man (peek curr-to)]
+                                      (update-in b
+                                                 [:point->men :bar (:player taken-man)]
+                                                 (fn [c] (conj c taken-man))))))))]
+    new-board))
+
 ;; =====
 ;; Rules
 ;; =====
@@ -70,6 +95,9 @@
            poss-set-of-moves)))
 
 (defn get-legal-moves-1 [{:keys [board die-roll player]}]
+  ;; If n moves aren't moving the same man, they can be played in any order
+  ;; - allowing this makes it more robust to plugging in other bots and allowing
+  ;;   human gameplay whilst still being able to check the legality of moves
   #{})
 
 (defn get-legal-moves
@@ -102,31 +130,35 @@
   ;; You can't use all die rolls if you don't have enough men to do so
   ;; - e.g. last item borne off
 
-  (let [[d1 d2]      die-rolls
-        total-rolls  (if (= d1 d2)
-                       (-> (repeat 2 die-rolls) flatten)
-                       die-rolls)
-        all-moves    (reduce (fn [acc die-roll])
-                             {:moves [] :board board :short-circuit false}
-                             total-rolls)]
-    (loop [all-moves []
-           die-nums  (sort total-rolls)
-           board     board]
-      (if-let [die-num (first die-nums)]
-        (let [moves (get-legal-moves-1 {:board board :die-roll (first die-nums) :player player})]
-          (if (seq moves)
-            ;; ==========================================================================
-            ;; TODO: get-legal-moves-1 needs to return (move, next-board) and then search
-            ;;       each next-board for the next roll, possibly with some kind of budget
-            ;;       and heuristic for which to search (like sorted-set in A*)
-            ;; ==========================================================================
-            (recur (conj all-moves moves) (rest die-nums) board)
+  ;; Don't forget that each move can change the board in such a way
+  ;; as to make subsequent moves un/available
 
-            ;; short-circuit by removing all remaining rolls
-            (recur all-moves [] board)))
-        (reduce set/union #{} all-moves)))))
+  (let [[d1 d2]         die-rolls
+        all-rolls       (if (= d1 d2)
+                          (-> (repeat 2 die-rolls) flatten vec)
+                          die-rolls)
+        all-roll-combos (combo/permutations all-rolls)
+        build-tree      (fn [rolls]
+                          ;; (let [first-moves  (get-legal-moves-1 {:board board
+                                                                 ;; :die-roll (first rolls)
+                                                                 ;; :player player})]
+                            ;; (loop [moves     first-moves
+                                   ;; rest-die  (rest die-rolls)]))
+                          )
+
+        trees           (map build-tree all-roll-combos)]
+
+    ;; map/mapcat tree -> list of moves
+    ;; shove in set
+
+    #{}))
 
 (comment
+  ;; different types...(sort in impl?)
+  (combo/permutations [5 6])
+  (combo/permutations [6 5])
+
+  (reverse (sort [1 5 2 6]))
   (valid-move? (->Move [:bar :p1] 19))
   (get-legal-moves {}) ;; => no!
   (get-legal-moves {}))
@@ -142,29 +174,6 @@
   (choose-moves [this ctx]
     (let [legal-moves (get-legal-moves (assoc ctx :player player-id))]
       (rand-nth (into [] legal-moves)))))
-
-(defn apply-move [board {:keys [from to] :as move}]
-  (let [from-path   (flatten (into [:point->men] (vector from)))
-        to-path     (flatten (into [:point->men] (vector to)))
-        man         (-> board (get-in from-path) peek)
-        curr-to     (get-in board to-path)
-        is-take     (and (seq curr-to)
-                         (not= (:player man)
-                               (-> curr-to peek :player)))
-        new-from    (-> board (get-in from-path) pop)
-        new-to      (if is-take
-                      [man]
-                      (conj curr-to man))
-        new-board    (-> board
-                         (assoc-in from-path new-from)
-                         (assoc-in to-path new-to)
-                         ((fn [b] (if-not is-take
-                                    b
-                                    (let [taken-man (peek curr-to)]
-                                      (update-in b
-                                                 [:point->men :bar (:player taken-man)]
-                                                 (fn [c] (conj c taken-man))))))))]
-    new-board))
 
 (defn finished? [board]
   (->> (get-in board [:point->men :borne-off])
