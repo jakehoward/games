@@ -34,7 +34,7 @@
 (defn player-generator []
   (let [id-atom (atom 0)]
     {:p1 (fn [] (make-man :p1 id-atom))
-     :p2 (fn [] (make-man :p1 id-atom))}))
+     :p2 (fn [] (make-man :p2 id-atom))}))
 
 ;; assertions
 ;; - men-per-player matches board totals
@@ -94,11 +94,94 @@
                                  (every? valid-move? poss-moves)))
            poss-set-of-moves)))
 
+(defn home-board? [player pos]
+  (if (= :p1 player)
+    (< pos 7)
+    (> pos 18)))
+
+(defn point-occupied-by? [board point player]
+  (-> (get-in board [:point->men point])
+      first
+      :player
+      (= player)))
+
+(comment
+  (let [{:keys [p1 p2]} (player-generator)
+        board           {:point->men (merge empty-point->men
+                                            {2 [(p1)]
+                                             3 [(p1) (p1)]
+                                             4 [(p2)]
+                                             5 [(p2) (p2)]})}]
+    (->>  [2 3 4 5]
+          (map (fn [point] ((juxt #(point-occupied-by? board % :p1)
+                                  #(point-occupied-by? board % :p2))
+                            point))))))
+
+(defn on-the-bar? [board player]
+  (-> board
+      (get-in [:point->men :bar player])
+      seq
+      boolean))
+
+(comment
+  (let [{:keys [p1 p2]} (player-generator)
+        board           {:point->men (merge empty-point->men
+                                            {:bar {:p1 [(p1)] :p2 []}})}]
+    ((juxt #(on-the-bar? board :p1)
+           #(on-the-bar? board :p2)))))
+
+
+(defn can-bear-off? [board player]
+  (and (not (on-the-bar? board player))
+       (->> (keys (:point->men board))
+            (filter integer?)
+            (filter #(point-occupied-by? board % player))
+            (every? #(home-board? player %)))))
+
+(comment
+  (let [{:keys [p1 p2]} (player-generator)
+        board           {:point->men (merge empty-point->men
+                                            {2  [(p1)]
+                                             ;; :bar {:p1 [(p1)] :p2 [(p2)]}
+                                             3  [(p1) (p1)]
+                                             ;; 12 [(p2)]
+                                             22 [(p2) (p2)]})}]
+    ((juxt #(can-bear-off? board :p1)
+           #(can-bear-off? board :p2)))))
+
+(defn can-land-on-point? [board player point]
+  (-> board
+      (get-in [:point->men point])
+      ((some-fn empty?
+                #(= 1 (count %))
+                #(= player (:player (peek %)))))))
+
+(comment
+  (let [{:keys [p1 p2]} (player-generator)
+        board           {:point->men (merge empty-point->men
+                                            {1  []
+                                             2  [(p1)]
+                                             3  [(p1) (p1)]
+                                             4  [(p2)]
+                                             5  [(p2) (p2)]})}]
+    (->> [1 2 3 4 5]
+         (map (fn [point] ((juxt #(can-land-on-point? board :p1 %)
+                                 #(can-land-on-point? board :p2 %))
+                           point))))))
+
 (defn get-legal-moves-1 [{:keys [board die-roll player]}]
-  ;; If n moves aren't moving the same man, they can be played in any order
-  ;; - allowing this makes it more robust to plugging in other bots and allowing
-  ;;   human gameplay whilst still being able to check the legality of moves
-  #{})
+  (cond
+    (on-the-bar? board player)
+    (let [point (if (= :p1 player) die-roll (- 25 die-roll))]
+      (if (can-land-on-point? board player point)
+        #{(->Move [:bar player] point)}
+        #{}))
+
+    (can-bear-off? board player)
+    #{}
+
+    :else
+    #{}))
 
 (defn get-legal-moves
   [{:keys [board die-rolls player]}]
@@ -132,6 +215,10 @@
 
   ;; Don't forget that each move can change the board in such a way
   ;; as to make subsequent moves un/available
+
+  ;; If n moves aren't moving the same man, they can be played in any order
+  ;; - allowing this makes it more robust to plugging in other bots and allowing
+  ;;   human gameplay whilst still being able to check the legality of moves
 
   (let [[d1 d2]         die-rolls
         all-rolls       (if (= d1 d2)
