@@ -89,6 +89,9 @@
 (defn is-set-of-valid-moves? [poss-set-of-moves]
   (and
    (set? poss-set-of-moves)
+   (if (seq poss-set-of-moves)
+     (every? #(= (count %) (count (first poss-set-of-moves))) poss-set-of-moves)
+     true)
    (every? (fn [poss-moves] (and (vector? poss-moves)
                                  (every? move? poss-moves)
                                  (every? valid-move? poss-moves)))
@@ -175,37 +178,47 @@
   (get-in board [:point->men point]))
 
 (defn get-legal-moves-1 [{:keys [board die-roll player]}]
-  (cond
-    (on-the-bar? board player)
-    (let [point (if (= :p1 player) die-roll (- 25 die-roll))]
-      (if (can-land-on-point? board player point)
-        #{(->Move [:bar player] point)}
-        #{}))
+  (let [standard-moves
+        (fn []
+          (let [froms          (->> (range 1 25)
+                                    (filter (partial player-occupies-point? board player) ))
+                from-to-pairs  (->> froms
+                                    (map (fn [from] (if (= :p1 player)
+                                                      [from (- from die-roll)]
+                                                      [from (+ from die-roll)])))
+                                    (filter (fn [[from to]]
+                                              (and (> from 0)
+                                                   (> to 0)
+                                                   (< from 25)
+                                                   (< from 25)
+                                                   (can-land-on-point? board player to)))))
+                moves           (map (fn [[f t]] (->Move f t)) from-to-pairs)]
+            (set moves)))]
 
-    ;; You MUST bear off the highest man you can
-    (can-bear-off? board player)
-    (reduce (fn [moves point]
-              (if (and (empty? moves)
-                       (= player (-> board (get-in [:point->men point]) peek :player)))
-                (conj moves (->Move point :borne-off))
-                moves)) #{} (if (= :p1 player) (range 6 0 -1) (range 19 25)))
+    (cond
+      (on-the-bar? board player)
+      (let [point (if (= :p1 player) (- 25 die-roll) die-roll)]
+        (if (can-land-on-point? board player point)
+          #{(->Move [:bar player] point)}
+          #{}))
 
-    ;; Assuming you can't move from point 5 to point 1 if you
-    ;; can't bear off and you roll a 6. ChatGPT agrees ¯\_(ツ)_/¯
-    :else
-    (let [froms          (filter (partial player-occupies-point? board player) (range 1 25))
-          from-to-pairs  (->> froms
-                              (map (fn [from] (if (= :p1 player)
-                                                [from (- from die-roll)]
-                                                [from (+ from die-roll)])))
-                              (filter (fn [[from to]]
-                                        (and (> from 0)
-                                             (> to 0)
-                                             (< from 25)
-                                             (< from 25)
-                                             (can-land-on-point? board player to)))))
-          moves           (map (fn [[f t]] (->Move f t)) from-to-pairs)]
-      (set moves))))
+      ;; You MUST bear off the highest man you can
+      (can-bear-off? board player)
+      (let [bear-off-moves
+            (reduce (fn [moves point]
+                      (if (and (empty? moves)
+                               (= player (-> board (get-in [:point->men point]) peek :player))
+                               (>= die-roll (if (= :p1 player) point (- 25 point))))
+                        (conj moves (->Move point :borne-off))
+                        moves))
+                    #{}
+                    (if (= :p1 player) (range 6 0 -1) (range 19 25)))]
+        (if (seq bear-off-moves)
+          bear-off-moves
+          (standard-moves)))
+
+      :else
+      (standard-moves))))
 
 (defn get-legal-moves
   [{:keys [board die-rolls player]}]
@@ -248,21 +261,33 @@
         all-rolls       (if (= d1 d2)
                           (-> (repeat 2 die-rolls) flatten vec)
                           die-rolls)
-        all-roll-combos (combo/permutations all-rolls)
-        build-tree      (fn [rolls]
-                          ;; (let [first-moves  (get-legal-moves-1 {:board board
-                                                                 ;; :die-roll (first rolls)
-                                                                 ;; :player player})]
-                            ;; (loop [moves     first-moves
-                                   ;; rest-die  (rest die-rolls)]))
-                          )
+        all-roll-combos (combo/permutations all-rolls)]
 
-        trees           (map build-tree all-roll-combos)]
+    (letfn [(get-moves [board rolls]
+              (if (empty? rolls)
+                []
+                (let [moves (get-legal-moves-1
+                             {:board board :die-roll (first rolls) :player player})]
+                  (->> moves
+                       (mapcat (fn [m]
+                                 (let [next-board (apply-move board m)
+                                       next-move-vecs (get-moves next-board (rest rolls))]
+                                   (if (seq next-move-vecs)
+                                     (mapv (fn [nmv] (into [m] nmv)) next-move-vecs)
+                                     [[m]]))))
+                       (into [])))))]
 
-    ;; map/mapcat tree -> list of moves
-    ;; shove in set
-
-    #{}))
+      (let [all-valid-moves (->>  all-roll-combos
+                                  (mapcat (partial get-moves board))
+                                  set)]
+        (if (and (not= d1 d2)
+                 (seq all-valid-moves)
+                 (= 1 (apply max (map count all-valid-moves))))
+          ;; todo - choose the move with the biggest magnitude
+          all-valid-moves
+          all-valid-moves
+          )
+        ))))
 
 (comment
   ;; different types...(sort in impl?)

@@ -46,7 +46,15 @@
                                 [(bg/->Move 6  5)  (bg/->Move 5  3)]
                                 [(bg/->Move 6  4)  (bg/->Move 4  3)]}
 
-          expected            (reduce set/union #{} (conj valid-combos same-man-moves))]
+          same-point-moves    #{[(bg/->Move 24 23) (bg/->Move 24 22)]
+                                [(bg/->Move 24 22) (bg/->Move 24 23)]
+                                [(bg/->Move 6 4) (bg/->Move 6 5)]
+                                [(bg/->Move 6 5) (bg/->Move 6 4)]
+                                [(bg/->Move 8 7) (bg/->Move 8 6)]
+                                [(bg/->Move 8 6) (bg/->Move 8 7)]}
+
+          expected            (reduce set/union #{}
+                                      (conj valid-combos same-man-moves same-point-moves))]
 
       (t/is (m/validate s/Board board))
       (t/is (m/validate s/LegalMoves expected))
@@ -62,8 +70,8 @@
                                                                  {1    [(p1)]
                                                                   :bar {:p2 [(p2)]}})))
           legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
-          expected            #{[(bg/->Move [:bar :p2] 2)]
-                                [(bg/->Move [:bar :p2] 1)]}]
+          expected            #{[(bg/->Move [:bar :p2] 2) (bg/->Move 2 3)]
+                                [(bg/->Move [:bar :p2] 1) (bg/->Move 1 3)]}]
 
       ;; (println (-> s/Board
       ;;              (m/explain board)
@@ -83,7 +91,7 @@
                                                                      2 [(p1)]})))
 
           legal-moves         (bg/get-legal-moves {:board board :die-rolls [1 2] :player :p2})
-          expected           #{[(bg/->Move 1 2)] [(bg/->Move 1 3)]}]
+          expected           #{[(bg/->Move 1 2) (bg/->Move 2 4)] [(bg/->Move 1 3) (bg/->Move 3 4)]}]
 
       (t/is (m/validate s/Board board))
       (t/is (m/validate s/LegalMoves expected))
@@ -193,6 +201,11 @@
       (t/is (= expected legal-moves))
       (t/is (= expected legal-moves))))
 
+
+  ;; TODO: if one fork of the legal moves tree only returns n moves but others
+  ;;       return n+1 (or more) then the n moves branch is illegal and should
+  ;;       not be returned
+
   (t/testing "can play one or other die, but not both - p2"
     (let [{:keys [p1 p2]}   (bg/player-generator)
           board             (empty-board-with {19 [(p2)]
@@ -254,17 +267,17 @@
                                               13 [(p2)]})
           die-roll         6
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
-          expected-p1      #{(bg/->Move [:bar :p1] 6)}
+          expected-p1      #{(bg/->Move [:bar :p1] 19)}
           moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
-          expected-p2      #{(bg/->Move [:bar :p2] 19)}]
+          expected-p2      #{(bg/->Move [:bar :p2] 6)}]
       (t/is (= expected-p1 moves-p1))
       (t/is (= expected-p2 moves-p2))))
 
   (t/testing "blocked re-entry"
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {:bar {:p1 [(p1)] :p2 [(p2)]}
-                                              19 [(p1) (p1)]
-                                              6  [(p2) (p2)]})
+                                              6 [(p1) (p1)]
+                                              19  [(p2) (p2)]})
           die-roll         6
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
           expected-p1      #{}
@@ -276,26 +289,38 @@
   (t/testing "taking re-entry"
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {:bar {:p1 [(p1)] :p2 [(p2)]}
-                                              19 [(p1)]
-                                              6  [(p2)]})
+                                              6 [(p1)]
+                                              19  [(p2)]})
           die-roll         6
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
-          expected-p1      #{(bg/->Move [:bar :p1] 6)}
+          expected-p1      #{(bg/->Move [:bar :p1] 19)}
           moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
-          expected-p2      #{(bg/->Move [:bar :p2] 19)}]
+          expected-p2      #{(bg/->Move [:bar :p2] 6)}]
       (t/is (= expected-p1 moves-p1))
       (t/is (= expected-p2 moves-p2))))
 
   (t/testing "bearing off not allowed because player on bar"
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {:bar {:p1 [(p1)] :p2 [(p2)]}
-                                              24 [(p1) (p1)]
-                                              1  [(p2) (p2)]})
+                                              24 [(p2) (p2)]
+                                              1  [(p1) (p1)]})
           die-roll         1
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
           expected-p1      #{}
           moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
           expected-p2      #{}]
+      (t/is (= expected-p1 moves-p1))
+      (t/is (= expected-p2 moves-p2))))
+
+  (t/testing "moving between points on home board when can bear off but die roll too small to do so"
+    (let [{:keys [p1 p2]}  (bg/player-generator)
+          board            (empty-board-with {22 [(p2) (p2)]
+                                              3  [(p1) (p1)]})
+          die-roll         1
+          moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
+          expected-p1      #{(bg/->Move 3 2)}
+          moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
+          expected-p2      #{(bg/->Move 22 23)}]
       (t/is (= expected-p1 moves-p1))
       (t/is (= expected-p2 moves-p2))))
 
@@ -308,6 +333,18 @@
           expected-p1      #{(bg/->Move 1 :borne-off)}
           moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
           expected-p2      #{(bg/->Move 24 :borne-off)}]
+      (t/is (= expected-p1 moves-p1))
+      (t/is (= expected-p2 moves-p2))))
+
+  (t/testing "bearing off fenceposts"
+    (let [{:keys [p1 p2]}  (bg/player-generator)
+          board            (empty-board-with {19 [(p2) (p2)]
+                                              6  [(p1) (p1)]})
+          die-roll         5
+          moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
+          expected-p1      #{(bg/->Move 6 1)}
+          moves-p2         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p2})
+          expected-p2      #{(bg/->Move 19 24)}]
       (t/is (= expected-p1 moves-p1))
       (t/is (= expected-p2 moves-p2)))))
 
