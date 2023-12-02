@@ -283,11 +283,16 @@
         (if (and (not= d1 d2)
                  (seq all-valid-moves)
                  (= 1 (apply max (map count all-valid-moves))))
-          ;; todo - choose the move with the biggest magnitude
-          all-valid-moves
-          all-valid-moves
-          )
-        ))))
+
+          (let [max-move (reduce (fn [max-move [m]]
+                                   (if (or (nil? max-move)
+                                           (< (abs (- (:from max-move) (:to max-move)))
+                                              (abs (- (:from m) (:to m)))))
+                                     m
+                                     max-move)) nil all-valid-moves)]
+           #{[max-move]})
+
+          all-valid-moves)))))
 
 (comment
   ;; different types...(sort in impl?)
