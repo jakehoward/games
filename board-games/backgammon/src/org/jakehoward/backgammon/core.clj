@@ -292,7 +292,14 @@
                                      max-move)) nil all-valid-moves)]
            #{[max-move]})
 
-          all-valid-moves)))))
+          (if (and
+               (seq all-valid-moves)
+               (not= 1 (count (set (map count all-valid-moves)))))
+            (let [max-count (apply max (map count all-valid-moves))]
+              (->> all-valid-moves
+                   (filter (fn [mvs] (= max-count (count mvs))))
+                   set))
+            all-valid-moves))))))
 
 (comment
   ;; different types...(sort in impl?)
