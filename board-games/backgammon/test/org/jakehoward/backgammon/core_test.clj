@@ -223,7 +223,7 @@
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {12 [(p2)]
                                               15 [(p1) (p1)]
-                                              5  [(p2)]
+                                              5  [(p2) (p2)]
                                               8  [(p1)]})
           die-roll         3
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
@@ -237,7 +237,7 @@
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {12 [(p2) (p2)]
                                               15 [(p1) (p1)]
-                                              5  [(p2)]
+                                              5  [(p2) (p2)]
                                               8  [(p1) (p1)]})
           die-roll         3
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
@@ -289,8 +289,8 @@
   (t/testing "bearing off not allowed because player on bar"
     (let [{:keys [p1 p2]}  (bg/player-generator)
           board            (empty-board-with {:bar {:p1 [(p1)] :p2 [(p2)]}
-                                              24 [(p2) (p2)]
-                                              1  [(p1) (p1)]})
+                                              24 [(p1) (p1)]
+                                              1  [(p2) (p2)]})
           die-roll         1
           moves-p1         (bg/get-legal-moves-1 {:board board :die-roll die-roll :player :p1})
           expected-p1      #{}

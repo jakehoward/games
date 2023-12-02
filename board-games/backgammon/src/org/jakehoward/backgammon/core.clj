@@ -130,7 +130,6 @@
     ((juxt #(on-the-bar? board :p1)
            #(on-the-bar? board :p2)))))
 
-
 (defn can-bear-off? [board player]
   (and (not (on-the-bar? board player))
        (->> (keys (:point->men board))
@@ -169,6 +168,12 @@
                                  #(can-land-on-point? board :p2 %))
                            point))))))
 
+(defn player-occupies-point? [board player point]
+  (= player (-> board (get-in [:point->men point]) peek :player)))
+
+(defn get-point [board point]
+  (get-in board [:point->men point]))
+
 (defn get-legal-moves-1 [{:keys [board die-roll player]}]
   (cond
     (on-the-bar? board player)
@@ -177,11 +182,30 @@
         #{(->Move [:bar player] point)}
         #{}))
 
+    ;; You MUST bear off the highest man you can
     (can-bear-off? board player)
-    #{}
+    (reduce (fn [moves point]
+              (if (and (empty? moves)
+                       (= player (-> board (get-in [:point->men point]) peek :player)))
+                (conj moves (->Move point :borne-off))
+                moves)) #{} (if (= :p1 player) (range 6 0 -1) (range 19 25)))
 
+    ;; Assuming you can't move from point 5 to point 1 if you
+    ;; can't bear off and you roll a 6. ChatGPT agrees ¯\_(ツ)_/¯
     :else
-    #{}))
+    (let [froms          (filter (partial player-occupies-point? board player) (range 1 25))
+          from-to-pairs  (->> froms
+                              (map (fn [from] (if (= :p1 player)
+                                                [from (- from die-roll)]
+                                                [from (+ from die-roll)])))
+                              (filter (fn [[from to]]
+                                        (and (> from 0)
+                                             (> to 0)
+                                             (< from 25)
+                                             (< from 25)
+                                             (can-land-on-point? board player to)))))
+          moves           (map (fn [[f t]] (->Move f t)) from-to-pairs)]
+      (set moves))))
 
 (defn get-legal-moves
   [{:keys [board die-rolls player]}]
